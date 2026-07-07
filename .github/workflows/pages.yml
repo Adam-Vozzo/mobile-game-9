@@ -6,7 +6,12 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    # Deploy from the default branch. `main` is the eventual home; the
+    # current setup branch is included so the site publishes before a
+    # `main` branch exists yet.
+    branches:
+      - main
+      - claude/creature-breeding-game-setup-4r82sl
   workflow_dispatch:
 
 permissions:
