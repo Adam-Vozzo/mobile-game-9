@@ -101,6 +101,7 @@
       });
       this.el.helpBtn.addEventListener('click', () => this.showTutorial());
       this.el.tourneyBtn.addEventListener('click', () => this.startTournament());
+      $('#dev-btn').addEventListener('click', () => this.showDevTweaks());
       this.el.modalBack.addEventListener('click', (e) => {
         if (e.target === this.el.modalBack) this.closeModal();
       });
@@ -588,7 +589,7 @@
       const frames = result.frames;
       const total = frames.length;
       let f = opts.startFrac ? Math.floor(total * opts.startFrac) : 0;
-      const speedup = opts.speed || 2; // frames advanced per animation tick
+      const speedup = opts.speed || (EVO.DEV.fastRaces ? 5 : 2); // frames per tick
       const step = () => {
         const fi = Math.min(Math.floor(f), total - 1);
         const row = frames[fi];
@@ -986,6 +987,33 @@
         this.toast(r.ok ? `🍵 ${c.name} is charged for the next race!` : r.msg);
         if (r.ok) { this.renderStable(); this.openDetail(Game.getCreature(c.id)); }
       });
+    },
+
+    // ---- Dev Tweaks ---------------------------------------------------------
+    // Toggle menu for exploratory features (see js/dev.js for the registry).
+    // Flags persist separately from the save, so a game reset keeps them.
+    showDevTweaks() {
+      const rows = EVO.DEV_TWEAKS.map((t) => `
+        <label class="dev-row">
+          <span class="dev-emoji">${t.emoji}</span>
+          <span class="dev-body">
+            <span class="dev-name">${t.name}</span>
+            <span class="dev-blurb">${t.blurb}</span>
+          </span>
+          <span class="switch"><input type="checkbox" data-dev="${t.key}" ${EVO.DEV[t.key] ? 'checked' : ''}><i></i></span>
+        </label>`).join('');
+      this.openModalHTML(`
+        <h2 style="text-align:center">🧪 Dev Tweaks</h2>
+        <p class="hint" style="text-align:center">Experimental features under evaluation — they may change or disappear. Settings persist across game resets.</p>
+        ${rows}
+        <button class="btn primary block" style="margin-top:12px" onclick="EVO.UI.closeModal()">Done</button>
+      `);
+      $$('[data-dev]').forEach((input) => input.addEventListener('change', () => {
+        EVO.DEV[input.dataset.dev] = input.checked;
+        EVO.saveDev();
+        this.renderAll(); // re-render so art-style flips apply instantly
+        this.toast(`${input.checked ? 'Enabled' : 'Disabled'}: ${EVO.DEV_TWEAKS.find((t) => t.key === input.dataset.dev).name}`);
+      }));
     },
 
     // ---- Tutorial ---------------------------------------------------------

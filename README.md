@@ -111,6 +111,18 @@ Single-hand, thumb-friendly, five-tab bottom nav: **Stable · Breed · Race · W
 - [x] Items & consumables (Gene Splicer, Exposure Serum, Stamina Tonic)
 - [x] Achievements (13) + expanded Codex lore for every species
 
+### 🔬 v0.4 — Proposed (next up)
+New feature proposals. Visual/UX experiments land first behind the in-game **🧪 Dev Tweaks** menu (see below) so they can be evaluated on-device before graduating to defaults.
+- [ ] **Pixel-art render style** — 16×16 sprite renderer driven by the same genome · *prototype shipped, testable in Dev Tweaks now*
+- [ ] Sound effects & light music, toggleable (carried over from v0.2)
+- [ ] **Weather fronts** — per-race modifiers (sandstorm, downpour, whiteout) that temporarily shift biome bonuses and reward flexible bloodlines
+- [ ] **Stud market** — hire out a champion for coins, or pay to borrow a stranger's bloodline for one cross
+- [ ] **Hall of Fame** — retire a legend to grant its descendants a permanent lineage perk
+- [ ] **Betting booth** — wager coins on rival-only exhibition heats you don't race in
+- [ ] **Photo mode** — export a creature's portrait card (art + stats + pedigree) as a shareable image
+- [ ] **Night races** — bioluminescent-trait-only events with unique prizes
+- [ ] **Rival stables** — named recurring AI opponents whose bloodlines also evolve between seasons
+
 ### 🚀 v1.0 — Live game
 - [ ] PWA manifest + service worker (installable, true offline)
 - [ ] Cloud save / cross-device sync (optional account)
@@ -120,8 +132,19 @@ Single-hand, thumb-friendly, five-tab bottom nav: **Stable · Breed · Race · W
 
 ### 💡 Ideas parking lot
 - Genome import/export codes for trading
-- Weather that shifts biome bonuses per race
 - "Wild" world map you physically explore for legendary primordials
+- Creature nicknames, favourites, and custom stable décor
+- Endurance "grand tour" mode: one lineage, all six biomes back-to-back
+
+## 🧪 Dev Tweaks (experimental features)
+
+The game ships an in-game lab for exploratory features: **Stable tab → 🧪 Dev tweaks**. Toggles apply instantly, persist on the device (separately from your save, so resets keep them), and are defined in one registry ([`js/dev.js`](js/dev.js)) — adding an entry there is all it takes to expose a new experiment.
+
+Current experiments:
+| Toggle | What it does |
+| --- | --- |
+| 👾 **Pixel-art creatures** | Swaps the smooth vector art for a retro 16×16 sprite renderer driven by the *same genome* — hue, morphs, patterns, limbs, spines, tier features, and trait markers all carry over. |
+| ⏩ **Fast races** | Runs race animations at ~2.5× speed for quicker testing sessions. |
 
 ---
 
@@ -132,9 +155,10 @@ index.html            # App shell + view markup
 styles.css            # Mobile-first theme, animations, component styles
 js/
   data.js             # Static data: biomes, genes, species tree, traits, expeditions, goals
+  dev.js              # Dev Tweaks: registry + persistence for experimental feature flags
   genetics.js         # RNG, genome creation, inheritance, mutation, trait heredity
   creature.js         # Stat/adaptation derivation, rating, metamorphosis decisions
-  render.js           # Procedural SVG creature art
+  render.js           # Procedural SVG creature art (vector + experimental pixel renderer)
   race.js             # Race performance model + simulation
   game.js             # Game state, economy, breeding, expeditions, goals, predictor, save/load
   ui.js               # DOM rendering, navigation, interaction
