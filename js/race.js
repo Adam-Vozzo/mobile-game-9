@@ -31,7 +31,7 @@
   EVO.simulateRace = function (racers, biome, opts) {
     opts = opts || {};
     const trackLen = 1000;
-    const ticks = 240;
+    const ticks = 520;
     const profiles = racers.map((c) => EVO.racerProfile(c, biome));
 
     const state = racers.map((c, i) => ({
@@ -56,23 +56,25 @@
           st.vel += (target - st.vel) * accelRate;
 
           // Agility adds/removes small per-tick variance (racing luck / footing).
-          const jitter = (1 - p.agility / 160) * R.gauss(0, 0.9);
+          const jitter = (1 - p.agility / 160) * R.gauss(0, 0.7);
           let step = Math.max(0, st.vel * 0.09 + jitter);
 
           // Energy drains; stamina slows the drain. Low energy caps speed.
-          const drain = 0.55 - (p.stamina / 100) * 0.35;
+          // Scaled for the longer race so stamina decides the final stretch.
+          const drain = 0.28 - (p.stamina / 100) * 0.18;
           st.energy = Math.max(0, st.energy - drain);
 
           st.pos += step;
           if (st.pos >= trackLen && st.finishedTick == null) {
             st.pos = trackLen;
-            st.finishedTick = t + st.pos / (st.vel || 1) * 0; // marker
             st.finishedTick = t;
           }
         }
         posRow.push(Math.min(1, st.pos / trackLen));
       }
       frames.push(posRow);
+      // Stop once the whole field is home — no dead air after the finish.
+      if (state.every((s) => s.finishedTick != null)) break;
     }
 
     // Final ranking: by finish tick, then by distance covered.

@@ -8,6 +8,13 @@
 
   function dom(genome, key) { return genome[key][0]; } // dominant allele
 
+  // Gradient ids must be unique per RENDERED SVG, not per creature: the same
+  // creature drawn in two views would otherwise emit duplicate ids, and
+  // url(#...) resolves to the first one in the document — which may sit in a
+  // hidden (display:none) view whose gradients don't render, leaving bodies
+  // invisible. A global counter guarantees uniqueness.
+  let svgSeq = 0;
+
   // Returns an SVG string. `size` is the viewport px (square).
   EVO.creatureSVG = function (c, size) {
     size = size || 120;
@@ -37,7 +44,7 @@
     const bw = (26 + bodySize * 0.26) * scale;
     const bh = (23 + bodySize * 0.2) * scale;
 
-    const uid = 'r' + Math.abs((hue * 131 + (c.id ? c.id.length : 0) * 17 + tier * 7)) % 1000000;
+    const uid = 'r' + (++svgSeq);
 
     // ---- defs: gradients + soft shadow ----
     const defs = `<defs>

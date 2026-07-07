@@ -388,9 +388,9 @@
       this.el.track.innerHTML = '';
     },
 
-    buildField() {
+    buildField(playerId) {
       // Player racer + 4 AI rivals scaled to the day for difficulty.
-      const player = Game.getCreature(this.raceRacerId);
+      const player = Game.getCreature(playerId);
       const field = [player];
       const q = Math.min(0.8, 0.35 + Game.state.day * 0.02);
       for (let i = 0; i < 4; i++) {
@@ -405,25 +405,32 @@
     },
 
     doRace() {
+      if (this._racing) return;
       if (Game.state.coins < EVO.RACE_ENTRY) { this.toast('Not enough coins.'); return; }
       Game.state.coins -= EVO.RACE_ENTRY;
       this.renderHeader();
 
-      const field = this.buildField();
-      const result = EVO.simulateRace(field, this.raceBiome);
+      // Snapshot the entrant & biome now — the player can tap around during
+      // the animation, and results must record against the creature that ran.
+      const playerId = this.raceRacerId;
+      const biome = this.raceBiome;
+      this._racing = true;
+      const field = this.buildField(playerId);
+      const result = EVO.simulateRace(field, biome);
       this.animateRace(field, result, () => {
-        const rec = Game.recordRace(result, this.raceRacerId, this.raceBiome, EVO.RACE_ENTRY);
+        this._racing = false;
+        const rec = Game.recordRace(result, playerId, biome, EVO.RACE_ENTRY);
         this.renderHeader();
-        this.showResults(field, result, rec);
+        this.showResults(field, result, rec, playerId);
         this.renderStable();
         this.renderCodex();
         this.afterAction();
         // Note: don't call renderRace() here — it would clear the track &
         // results we just rendered. showResults() already syncs the button.
-      });
+      }, playerId);
     },
 
-    animateRace(field, result, done) {
+    animateRace(field, result, done, playerId) {
       const track = this.el.track;
       track.innerHTML = '';
       this.el.raceResults.innerHTML = '';
@@ -432,7 +439,7 @@
       const lanes = field.map((c, i) => {
         const lane = document.createElement('div');
         lane.className = 'lane';
-        const isPlayer = c.id === this.raceRacerId;
+        const isPlayer = c.id === playerId;
         lane.innerHTML = `<div class="lname">${isPlayer ? '▶ ' : ''}${c.name}</div><div class="finish"></div>`;
         const racer = document.createElement('div');
         racer.className = 'racer' + (isPlayer ? ' player' : '');
@@ -462,14 +469,14 @@
       requestAnimationFrame(step);
     },
 
-    showResults(field, result, rec) {
+    showResults(field, result, rec, playerId) {
       const box = this.el.raceResults;
       const byId = {};
       field.forEach((c) => (byId[c.id] = c));
       let html = '<div class="section-title">Results</div>';
       result.order.forEach((id, pos) => {
         const c = byId[id];
-        const you = id === this.raceRacerId;
+        const you = id === playerId;
         const prize = EVO.racePrize(pos, EVO.RACE_ENTRY);
         html += `<div class="result-row ${you ? 'you' : ''}">
           <span class="place">${['🥇','🥈','🥉'][pos] || (pos + 1)}</span>
