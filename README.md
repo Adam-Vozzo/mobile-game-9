@@ -112,8 +112,9 @@ Single-hand, thumb-friendly, five-tab bottom nav: **Stable · Breed · Race · W
 - [x] Achievements (13) + expanded Codex lore for every species
 
 ### 🔬 v0.4 — Proposed (next up)
-New feature proposals. Visual/UX experiments land first behind the in-game **🧪 Dev Tweaks** menu (see below) so they can be evaluated on-device before graduating to defaults.
+New feature proposals. Visual/UX experiments land first behind the in-game **🧪 Dev Tweaks** menu (see below) so they can be evaluated on-device before graduating to defaults — six are live there now (pixel art, synthwave theme, chaos mutations, gene inspector, fast races, free-entry sandbox).
 - [ ] **Pixel-art render style** — 16×16 sprite renderer driven by the same genome · *prototype shipped, testable in Dev Tweaks now*
+- [ ] **Synthwave UI theme** — neon palette · *prototype shipped, testable in Dev Tweaks now*
 - [ ] Sound effects & light music, toggleable (carried over from v0.2)
 - [ ] **Weather fronts** — per-race modifiers (sandstorm, downpour, whiteout) that temporarily shift biome bonuses and reward flexible bloodlines
 - [ ] **Stud market** — hire out a champion for coins, or pay to borrow a stranger's bloodline for one cross
@@ -138,13 +139,17 @@ New feature proposals. Visual/UX experiments land first behind the in-game **�
 
 ## 🧪 Dev Tweaks (experimental features)
 
-The game ships an in-game lab for exploratory features: **Stable tab → 🧪 Dev tweaks**. Toggles apply instantly, persist on the device (separately from your save, so resets keep them), and are defined in one registry ([`js/dev.js`](js/dev.js)) — adding an entry there is all it takes to expose a new experiment.
+The game ships an in-game lab for exploratory features: **Stable tab → 🧪 Dev tweaks**. The menu groups experiments by category, shows how many are active (with a matching badge on the Dev button), applies toggles instantly, and has a one-tap **Reset tweaks**. Flags persist on the device *separately* from your save — so a game reset keeps them — and are defined in one registry ([`js/dev.js`](js/dev.js)): adding an entry (with a `group`) is all it takes to expose a new experiment.
 
 Current experiments:
-| Toggle | What it does |
-| --- | --- |
-| 👾 **Pixel-art creatures** | Swaps the smooth vector art for a retro 16×16 sprite renderer driven by the *same genome* — hue, morphs, patterns, limbs, spines, tier features, and trait markers all carry over. |
-| ⏩ **Fast races** | Runs race animations at ~2.5× speed for quicker testing sessions. |
+| Group | Toggle | What it does |
+| --- | --- | --- |
+| Visual style | 👾 **Pixel-art creatures** | Swaps the smooth vector art for a retro 16×16 sprite renderer driven by the *same genome* — hue, morphs, patterns, limbs, spines, tier features, and trait markers all carry over. |
+| Visual style | 🌆 **Synthwave theme** | Recolours the whole app with a neon night-grid palette (magenta / cyan / deep violet) plus creature glow. |
+| Gameplay | 🌪️ **Chaos mutations** | Cranks the mutation rate ~2.5× for wilder offspring and faster morph/trait discovery. |
+| Gameplay | 🔬 **Gene inspector** | Adds a raw allele-pair table to the creature sheet, exposing the genotype behind every expressed gene. |
+| Testing | ⏩ **Fast races** | Runs race animations at ~2.5× speed. |
+| Testing | 🎲 **Free-entry sandbox** | Zeroes breeding, race, tournament, and expedition fees (market/shop prices stay real) for unconstrained testing. |
 
 ---
 

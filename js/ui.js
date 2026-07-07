@@ -16,6 +16,7 @@
       this.cacheEls();
       this.bindTabs();
       this.bindStatic();
+      this.applyDevStyles();
       this.renderAll();
     },
 
@@ -331,7 +332,7 @@
         ? Game.canBreed(this.breedSel.mom, this.breedSel.dad)
         : { ok: false, msg: 'Pick two parents' };
       btn.disabled = !check.ok;
-      btn.textContent = check.ok ? `Breed (−${EVO.BREED_COST} coins)` : check.msg;
+      btn.textContent = check.ok ? `Breed (−${EVO.devCost(EVO.BREED_COST)} coins)` : check.msg;
     },
 
     doBreed() {
@@ -399,15 +400,16 @@
         }));
       });
 
-      this.el.raceBtn.disabled = !this.raceRacerId || Game.state.coins < EVO.RACE_ENTRY;
-      this.el.raceBtn.textContent = Game.state.coins < EVO.RACE_ENTRY
-        ? 'Need coins to enter' : `Enter Race (−${EVO.RACE_ENTRY} coins)`;
+      const entry = EVO.devCost(EVO.RACE_ENTRY);
+      this.el.raceBtn.disabled = !this.raceRacerId || Game.state.coins < entry;
+      this.el.raceBtn.textContent = Game.state.coins < entry
+        ? 'Need coins to enter' : `Enter Race (−${entry} coins)`;
       this.el.raceResults.innerHTML = '';
       this.el.track.innerHTML = '';
       this.el.commentary.textContent = '';
       this.el.commentary.classList.remove('banner');
-      this.el.tourneyBtn.textContent = `🏆 Enter the Season ${Game.seasonNumber()} Cup (−${EVO.TOURNAMENT.entry} coins)`;
-      this.el.tourneyBtn.disabled = Game.state.coins < EVO.TOURNAMENT.entry;
+      this.el.tourneyBtn.textContent = `🏆 Enter the Season ${Game.seasonNumber()} Cup (−${EVO.devCost(EVO.TOURNAMENT.entry)} coins)`;
+      this.el.tourneyBtn.disabled = Game.state.coins < EVO.devCost(EVO.TOURNAMENT.entry);
       if (!this._tourney) this.el.tourney.innerHTML = '';
     },
 
@@ -535,8 +537,9 @@
     doRace() {
       if (this._racing) return;
       if (this._tourney) { this.toast('Finish the tournament first!'); return; }
-      if (Game.state.coins < EVO.RACE_ENTRY) { this.toast('Not enough coins.'); return; }
-      Game.state.coins -= EVO.RACE_ENTRY;
+      const entryFee = EVO.devCost(EVO.RACE_ENTRY);
+      if (Game.state.coins < entryFee) { this.toast('Not enough coins.'); return; }
+      Game.state.coins -= entryFee;
       this.renderHeader();
 
       // Snapshot the entrant & biome now — the player can tap around during
@@ -548,7 +551,7 @@
       const result = EVO.simulateRace(field, biome);
       this.animateRace(field, result, () => {
         this._racing = false;
-        const rec = Game.recordRace(result, playerId, biome, EVO.RACE_ENTRY);
+        const rec = Game.recordRace(result, playerId, biome, entryFee);
         this.renderHeader();
         this.showResults(field, result, rec, playerId);
         this.renderStable();
@@ -621,7 +624,7 @@
       this.animateRace(field, result, () => {
         this._racing = false;
         this.el.commentary.textContent = '📸 What a finish!';
-        this.el.raceBtn.disabled = Game.state.coins < EVO.RACE_ENTRY;
+        this.el.raceBtn.disabled = Game.state.coins < EVO.devCost(EVO.RACE_ENTRY);
       }, playerId, { startFrac: 0.78, speed: 0.55, banner: '📸 PHOTO FINISH — SLOW-MOTION REPLAY', silent: true });
     },
 
@@ -636,7 +639,7 @@
       result.order.forEach((id, pos) => {
         const c = byId[id];
         const you = id === playerId;
-        const prize = EVO.racePrize(pos, EVO.RACE_ENTRY);
+        const prize = EVO.racePrize(pos, EVO.devCost(EVO.RACE_ENTRY));
         html += `<div class="result-row ${you ? 'you' : ''}">
           <span class="place">${['🥇','🥈','🥉'][pos] || (pos + 1)}</span>
           <span class="rname">${you ? '<b>' + c.name + ' (you)</b>' : c.name}</span>
@@ -651,7 +654,7 @@
       box.innerHTML = html;
       const rp = $('#replay-btn');
       if (rp) rp.addEventListener('click', () => this.replayFinish(field, result, playerId));
-      this.el.raceBtn.disabled = Game.state.coins < EVO.RACE_ENTRY;
+      this.el.raceBtn.disabled = Game.state.coins < EVO.devCost(EVO.RACE_ENTRY);
     },
 
     // ---- Wilds (Expeditions + Shop + Market) ------------------------------
@@ -709,10 +712,11 @@
 
       const kinds = Object.keys(EVO.EXPEDITIONS).map((kk) => {
         const k = EVO.EXPEDITIONS[kk];
-        const afford = Game.state.coins >= k.cost;
+        const fee = EVO.devCost(k.cost);
+        const afford = Game.state.coins >= fee;
         return `<button class="xkind btn ${afford ? '' : 'disabled-look'}" data-kind="${kk}" ${afford ? '' : 'disabled'}>
           <div class="xk-name">${k.name}</div>
-          <div class="xk-meta">🪙${k.cost} · ${k.days}d · ${Math.round(k.rareChance * 100)}% rare</div>
+          <div class="xk-meta">🪙${fee} · ${k.days}d · ${Math.round(k.rareChance * 100)}% rare</div>
         </button>`;
       }).join('');
 
@@ -922,6 +926,27 @@
       </div>`;
     },
 
+    // Raw allele readout (gene inspector Dev Tweak). Shows both alleles per
+    // gene so you can see the genotype behind the expressed phenotype.
+    geneInspectorHTML(c) {
+      const g = c.genome;
+      const PATTERN = EVO.PATTERNS, LIMB = EVO.LIMBS, MORPH = ['normal', 'iridescent', 'albino', 'melanic'];
+      const rowN = (label, key) => `<tr><td>${label}</td><td>${g[key][0]} / ${g[key][1]}</td><td>${Math.round((g[key][0] + g[key][1]) / 2)}</td></tr>`;
+      const rowE = (label, key, map) => `<tr><td>${label}</td><td>${map[g[key][0]] ?? g[key][0]} / ${map[g[key][1]] ?? g[key][1]}</td><td>${map[g[key][0]] ?? g[key][0]}</td></tr>`;
+      const stats = EVO.STAT_GENES.map((k) => rowN(k, k)).join('');
+      const adapt = EVO.BIOME_KEYS.map((b) => rowN(EVO.BIOMES[b].name.split(' ')[0], 'adapt_' + b)).join('');
+      const vis = [
+        rowN('hue°', 'hue'), rowE('pattern', 'pattern', PATTERN), rowN('bodySize', 'bodySize'),
+        rowE('limb', 'limb', LIMB), rowN('eyes', 'eyes'), rowN('horn', 'horn'),
+        rowE('morph', 'sheen', MORPH), rowN('spikes', 'spikes'),
+      ].join('');
+      return `<div class="section-title">🔬 Gene inspector</div>
+        <div class="gene-table-wrap"><table class="gene-table">
+          <thead><tr><th>gene</th><th>alleles</th><th>expressed</th></tr></thead>
+          <tbody>${stats}${adapt}${vis}</tbody>
+        </table></div>`;
+    },
+
     openDetail(c) {
       const sp = EVO.SPECIES[c.species];
       const best = EVO.bestBiome(c);
@@ -948,6 +973,7 @@
         ${traitLine}
         <p class="hint" style="text-align:center">Best on: ${EVO.BIOMES[best].emoji} ${EVO.BIOMES[best].name} · ${c.races} races, ${c.wins} wins</p>
         ${this.statDetailHTML(c)}
+        ${EVO.DEV.geneInspector ? this.geneInspectorHTML(c) : ''}
         <div class="section-title">Family tree</div>
         ${this.lineageHTML(c)}
         ${itemRow}
@@ -992,28 +1018,86 @@
     // ---- Dev Tweaks ---------------------------------------------------------
     // Toggle menu for exploratory features (see js/dev.js for the registry).
     // Flags persist separately from the save, so a game reset keeps them.
+    // The menu is grouped by category, shows a live active count, and can
+    // clear everything at once.
     showDevTweaks() {
-      const rows = EVO.DEV_TWEAKS.map((t) => `
-        <label class="dev-row">
+      // Group the registry by `group`, preserving first-seen order.
+      const groups = [];
+      EVO.DEV_TWEAKS.forEach((t) => {
+        let g = groups.find((x) => x.name === t.group);
+        if (!g) { g = { name: t.group, items: [] }; groups.push(g); }
+        g.items.push(t);
+      });
+      const row = (t) => `
+        <label class="dev-row ${EVO.DEV[t.key] ? 'on' : ''}" data-row="${t.key}">
           <span class="dev-emoji">${t.emoji}</span>
           <span class="dev-body">
             <span class="dev-name">${t.name}</span>
             <span class="dev-blurb">${t.blurb}</span>
           </span>
-          <span class="switch"><input type="checkbox" data-dev="${t.key}" ${EVO.DEV[t.key] ? 'checked' : ''}><i></i></span>
-        </label>`).join('');
+          <span class="switch"><input type="checkbox" data-dev="${t.key}" ${EVO.DEV[t.key] ? 'checked' : ''} aria-label="${t.name}"><i></i></span>
+        </label>`;
+      const sections = groups.map((g) =>
+        `<div class="dev-group-label">${g.name}</div>${g.items.map(row).join('')}`).join('');
+
       this.openModalHTML(`
-        <h2 style="text-align:center">🧪 Dev Tweaks</h2>
-        <p class="hint" style="text-align:center">Experimental features under evaluation — they may change or disappear. Settings persist across game resets.</p>
-        ${rows}
-        <button class="btn primary block" style="margin-top:12px" onclick="EVO.UI.closeModal()">Done</button>
+        <div class="dev-head">
+          <h2>🧪 Dev Tweaks</h2>
+          <span class="dev-count" id="dev-count"></span>
+        </div>
+        <p class="hint">Experimental features under evaluation — they may change or disappear. Toggles apply instantly and persist across game resets.</p>
+        ${sections}
+        <div class="btnrow" style="margin-top:14px">
+          <button class="btn ghost sm" id="dev-clear">Reset tweaks</button>
+          <button class="btn primary block" onclick="EVO.UI.closeModal()">Done</button>
+        </div>
       `);
-      $$('[data-dev]').forEach((input) => input.addEventListener('change', () => {
-        EVO.DEV[input.dataset.dev] = input.checked;
+
+      const updateCount = () => {
+        const n = EVO.devActive();
+        const el = $('#dev-count');
+        el.textContent = n ? `${n} active` : 'none active';
+        el.classList.toggle('lit', n > 0);
+        const clr = $('#dev-clear');
+        if (clr) clr.disabled = n === 0;
+      };
+      const applyToggle = (key, on) => {
+        EVO.DEV[key] = on;
         EVO.saveDev();
-        this.renderAll(); // re-render so art-style flips apply instantly
-        this.toast(`${input.checked ? 'Enabled' : 'Disabled'}: ${EVO.DEV_TWEAKS.find((t) => t.key === input.dataset.dev).name}`);
+        this.applyDevStyles();
+        this.renderAll(); // re-render so art/economy flips apply instantly
+      };
+
+      $$('[data-dev]').forEach((input) => input.addEventListener('change', () => {
+        applyToggle(input.dataset.dev, input.checked);
+        const rowEl = $(`[data-row="${input.dataset.dev}"]`);
+        if (rowEl) rowEl.classList.toggle('on', input.checked);
+        updateCount();
+        this.toast(`${input.checked ? '✓ Enabled' : '✕ Disabled'}: ${EVO.DEV_TWEAKS.find((t) => t.key === input.dataset.dev).name}`);
       }));
+      $('#dev-clear').addEventListener('click', () => {
+        if (!EVO.devActive()) return;
+        EVO.DEV_TWEAKS.forEach((t) => (EVO.DEV[t.key] = false));
+        EVO.saveDev();
+        this.applyDevStyles();
+        this.renderAll();
+        this.showDevTweaks(); // rebuild the menu in its cleared state
+        this.toast('All tweaks reset.');
+      });
+      updateCount();
+    },
+
+    // Apply/remove document-level effects of style tweaks (theme classes),
+    // and reflect the active count on the Dev button. Called on boot and on
+    // every toggle so flags survive reloads.
+    applyDevStyles() {
+      document.documentElement.classList.toggle('synthwave', !!EVO.DEV.synthwave);
+      const btn = $('#dev-btn');
+      if (btn) {
+        const n = EVO.devActive();
+        btn.textContent = n ? `🧪 Dev tweaks · ${n}` : '🧪 Dev tweaks';
+        btn.classList.toggle('has-active', n > 0);
+      }
     },
 
     // ---- Tutorial ---------------------------------------------------------

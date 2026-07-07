@@ -161,7 +161,7 @@
       if (!mom || !dad) return { ok: false, msg: 'Creature missing.' };
       if (mom.sex === dad.sex) return { ok: false, msg: 'Need one male and one female.' };
       if (this.state.stable.length >= this.state.stableCap) return { ok: false, msg: 'Stable is full — make room first.' };
-      const cost = EVO.BREED_COST;
+      const cost = EVO.devCost(EVO.BREED_COST);
       if (this.state.coins < cost) return { ok: false, msg: `Breeding costs ${cost} coins.` };
       return { ok: true };
     },
@@ -171,11 +171,11 @@
       if (!check.ok) return check;
       const mom = this.getCreature(momId);
       const dad = this.getCreature(dadId);
-      this.state.coins -= EVO.BREED_COST;
+      this.state.coins -= EVO.devCost(EVO.BREED_COST);
 
       // Directed-evolution pressure = the biome BOTH parents have raced most.
       const pressure = EVO.combinedPressure(mom, dad);
-      const genome = EVO.breedGenome(mom.genome, dad.genome, pressure, EVO.MUT_RATE);
+      const genome = EVO.breedGenome(mom.genome, dad.genome, pressure, EVO.mutRate());
       const decision = EVO.decideSpecies(mom, dad, genome);
 
       const child = EVO.makeCreature(genome, {
@@ -185,7 +185,7 @@
         // Offspring inherit a fraction of the parents' biome exposure —
         // lineage "memory" that keeps directed evolution rolling.
         biomeExposure: EVO.inheritExposure(mom, dad),
-        traits: EVO.inheritTraits(mom, dad, EVO.MUT_RATE),
+        traits: EVO.inheritTraits(mom, dad, EVO.mutRate()),
       });
       mom.age++; dad.age++;
       this.state.stable.push(child);
@@ -236,7 +236,8 @@
       if (!kind) return { ok: false, msg: 'Unknown expedition.' };
       const c = this.getCreature(creatureId);
       if (!c || !this.state.stable.find((x) => x.id === creatureId)) return { ok: false, msg: 'Pick a creature to send.' };
-      if (this.state.coins < kind.cost) return { ok: false, msg: `Costs ${kind.cost} coins.` };
+      const fee = EVO.devCost(kind.cost);
+      if (this.state.coins < fee) return { ok: false, msg: `Costs ${fee} coins.` };
       return { ok: true };
     },
 
@@ -245,7 +246,7 @@
       if (!check.ok) return check;
       const kind = EVO.EXPEDITIONS[kindKey];
       const c = this.getCreature(creatureId);
-      this.state.coins -= kind.cost;
+      this.state.coins -= EVO.devCost(kind.cost);
 
       const finds = { coins: 0, egg: null, trait: null };
       // Coins always.
@@ -377,12 +378,13 @@
 
     canTournament(racerId) {
       if (!racerId || !this.state.stable.find((c) => c.id === racerId)) return { ok: false, msg: 'Pick a racer first.' };
-      if (this.state.coins < EVO.TOURNAMENT.entry) return { ok: false, msg: `Entry costs ${EVO.TOURNAMENT.entry} coins.` };
+      const entry = EVO.devCost(EVO.TOURNAMENT.entry);
+      if (this.state.coins < entry) return { ok: false, msg: `Entry costs ${entry} coins.` };
       return { ok: true };
     },
 
     payTournamentEntry() {
-      this.state.coins -= EVO.TOURNAMENT.entry;
+      this.state.coins -= EVO.devCost(EVO.TOURNAMENT.entry);
       this.save();
     },
 
@@ -493,7 +495,7 @@
     let evolveHits = 0;
     let evolveTarget = null;
     for (let i = 0; i < samples; i++) {
-      const g = EVO.breedGenome(mom.genome, dad.genome, pressure, EVO.MUT_RATE);
+      const g = EVO.breedGenome(mom.genome, dad.genome, pressure, EVO.mutRate());
       const decision = EVO.decideSpecies(mom, dad, g);
       if (decision.evolved) { evolveHits++; evolveTarget = decision.species; }
       const spBonus = (EVO.SPECIES[decision.species] || {}).statBonus || {};

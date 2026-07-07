@@ -329,8 +329,16 @@ main { padding: 12px 12px 90px; }
 .cx-lore { font-size: 11px; color: var(--muted); font-style: italic; margin-top: 4px; opacity: .85; line-height: 1.45; }
 
 /* Dev Tweaks */
+.dev-head { display: flex; align-items: center; gap: 10px; }
+.dev-head h2 { margin: 0; }
+.dev-count { margin-left: auto; font-size: 11px; font-weight: 700; color: var(--muted);
+  background: var(--panel); border: 1px solid var(--line); padding: 3px 9px; border-radius: 999px; }
+.dev-count.lit { color: var(--accent2); border-color: var(--accent2); }
+.dev-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted);
+  margin: 14px 2px 8px; }
 .dev-row { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line);
-  border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; }
+  border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; transition: border-color .15s, background .15s; }
+.dev-row.on { border-color: var(--accent2); background: rgba(6,214,160,.06); }
 .dev-emoji { font-size: 22px; width: 28px; text-align: center; }
 .dev-body { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .dev-name { font-weight: 700; font-size: 13px; }
@@ -343,9 +351,35 @@ main { padding: 12px 12px 90px; }
   background: var(--muted); transition: transform .15s, background .15s; }
 .switch input:checked + i { background: rgba(6,214,160,.25); border-color: var(--accent2); }
 .switch input:checked + i::after { transform: translateX(18px); background: var(--accent2); }
+#dev-btn.has-active { color: var(--accent2); border-color: var(--accent2); }
+
+/* Gene inspector table */
+.gene-table-wrap { overflow-x: auto; margin: 4px 0 8px; -webkit-overflow-scrolling: touch; }
+.gene-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.gene-table th { text-align: left; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px;
+  font-size: 9px; padding: 4px 8px; border-bottom: 1px solid var(--line); }
+.gene-table td { padding: 4px 8px; border-bottom: 1px solid var(--line); }
+.gene-table td:first-child { color: var(--muted); }
+.gene-table td:nth-child(2) { font-variant-numeric: tabular-nums; color: var(--ink); }
+.gene-table td:last-child { color: var(--accent2); font-weight: 700; text-align: right; }
 
 /* Pixel-art render mode */
 .creature-svg.pixel { image-rendering: pixelated; }
+
+/* Synthwave theme (Dev Tweak) — neon night-grid palette */
+:root.synthwave {
+  --bg: #17081f; --bg2: #1f0d2e; --panel: #2a1140; --panel2: #3a1a55;
+  --ink: #f7e9ff; --muted: #b98fd6; --accent: #ff5edb; --accent2: #23e0e6;
+  --danger: #ff477e; --line: #43215f;
+}
+:root.synthwave body { background:
+  linear-gradient(180deg, #17081f 0%, #17081f 62%, #2a0d3a 100%); }
+:root.synthwave .topbar { background: linear-gradient(180deg, #2a0f3e, #17081f); }
+:root.synthwave .hero { background: linear-gradient(135deg, #3a1550, #1c0a28 60%); }
+:root.synthwave .hero-glow { background: radial-gradient(circle, rgba(35,224,230,.4), transparent 70%); }
+:root.synthwave .btn.primary { box-shadow: 0 0 14px rgba(35,224,230,.4); }
+:root.synthwave .btn.gold { box-shadow: 0 0 14px rgba(255,94,219,.35); }
+:root.synthwave .creature-svg { filter: drop-shadow(0 0 5px rgba(255,94,219,.25)); }
 
 /* Tutorial */
 .tut { text-align: center; }
