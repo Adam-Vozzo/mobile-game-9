@@ -63,16 +63,19 @@ So the strategic fantasy is: *choose where your bloodline lives, and watch it be
 
 | System | What it does |
 | --- | --- |
-| **Genetics** | Each creature carries two alleles per gene (4 core stats, 4 biome-adaptation genes, 6 visual genes). Offspring inherit one allele per parent, plus mutation. Stats = the mean of the two alleles. |
-| **Biomes** | Sunscorch Dunes 🏜️, Mirefen Bog 🐸, Skyreach Crags ⛰️, Hollowfrost Tundra ❄️ — each rewards adapted creatures and penalizes the rest, so *fit matters more than raw stats*. |
-| **Evolution tree** | Grubling → four Tier-1 biome specialists → four Tier-2 apex forms. Metamorphosis triggers on breeding when offspring adaptation clears the tier threshold. |
-| **Mutation traits** | Rare heritable perks (Swiftborn 💨, Ironhide 🛡️, Bioluminescent ✨, Twin-Tailed 🜛) found while exploring. Each gives a stat edge and a visible tell. |
-| **Racing** | 5-racer animated sim. Effective speed blends stats with biome adaptation, energy drain (stamina), acceleration ramp, and agility-driven variance. Top-3 pay prizes. |
+| **Genetics** | Each creature carries two alleles per gene (4 core stats, 6 biome-adaptation genes, 8 visual genes including colour morphs and spines). Offspring inherit one allele per parent, plus mutation. Stats = the mean of the two alleles. |
+| **Biomes** | Sunscorch Dunes 🏜️, Mirefen Bog 🐸, Skyreach Crags ⛰️, Hollowfrost Tundra ❄️, Cinderveil Wastes 🌋, Sapphire Shallows 🐚 — each rewards adapted creatures and penalizes the rest, so *fit matters more than raw stats*. |
+| **Evolution tree** | Grubling → six Tier-1 biome specialists → six Tier-2 apex forms, **plus seven cross-biome hybrid apexes** bred from two different specialists adapted to both parent biomes. Metamorphosis triggers on breeding when offspring adaptation clears the tier threshold. |
+| **Mutation traits** | Rare heritable perks (Swiftborn 💨, Ironhide 🛡️, Bioluminescent ✨, Twin-Tailed 🜛) found while exploring. Each gives a stat edge and bespoke art on the creature. |
+| **Racing** | 5-racer animated sim with **live commentary** and **photo-finish slow-mo replays**. Effective speed blends stats with biome adaptation, energy drain (stamina), acceleration ramp, and agility-driven variance. Rival strength rubber-bands to your entrant. Top-3 pay prizes. |
+| **Tournaments** | An 8-racer knockout Cup per season: survive your semifinal heat, race the final, take the champion's purse. |
 | **Expeditions** | Send a creature into a biome (Scout / Trek / Deep) for coins, wild eggs that lean into that biome, and rare traits — plus exposure to steer evolution without racing. |
+| **Items** | Gene Splicer 🧪 (boost a random stat gene), Exposure Serum 💉 (instant biome exposure), Stamina Tonic 🍵 (one-race energy boost). |
 | **Breeding predictor** | A Monte-Carlo preview (160 simulated offspring) showing min–max stat ranges and the **% chance of metamorphosis** before you commit. |
-| **Economy** | Earn coins from races, prizes, expeditions, and goals; spend on breeding, race entry, expeditions, wild-market creatures, and stable expansion. |
-| **Goals** | An 8-step objective ladder that guides new players and drips rewards (first race → first win → first evolution → apex predator). |
-| **Codex** | Tracks discovered species and mutation traits, plus career stats. |
+| **Family tree** | Every creature's sheet shows a three-generation pedigree, kept even after ancestors are sold. |
+| **Economy** | Earn coins from races, tournaments, expeditions, goals, and achievements; spend on breeding, entries, items, wild-market creatures, and stable expansion. |
+| **Goals & achievements** | An 8-step guided goal ladder plus 13 long-tail achievements. |
+| **Codex** | Tracks discovered species (with lore), mutation traits, achievements, and career stats. First launch opens a 5-step tutorial (replayable via the ? button). |
 
 ### Procedural art
 Every creature is drawn from its genome as an inline SVG — hue, pattern, body size, limb type (legs/fins/talons/paws), eye count, and horns are all heritable, so a bloodline is visually recognisable and **evolution is something you can see**, not just read.
@@ -94,19 +97,19 @@ Single-hand, thumb-friendly, five-tab bottom nav: **Stable · Breed · Race · W
 - [x] Breeding predictor, goals ladder, wild market, Codex
 - [x] `localStorage` save/load
 
-### 🔜 v0.2 — Depth & feel
+### ✅ v0.2 — Depth & feel
 - [ ] Sound effects & light music (toggleable)
-- [ ] Race commentary and photo-finish replays
-- [ ] Lineage / family-tree viewer in the creature sheet
-- [ ] More visual gene expression (skins, sizes, colour morphs) and trait art
-- [ ] Difficulty curve tuning + a proper tutorial overlay
+- [x] Race commentary and photo-finish replays
+- [x] Lineage / family-tree viewer in the creature sheet
+- [x] More visual gene expression (colour morphs: iridescent/albino/melanic, back spines, wider size range) and per-trait art
+- [x] Difficulty curve tuning (rivals rubber-band to your entrant's rating) + a proper tutorial overlay
 
-### 🌱 v0.3 — Content & progression
-- [ ] Two more biomes (e.g. Volcanic Ash, Deep Reef) + matching evolution branches
-- [ ] Cross-biome **hybrid** apex forms (breed two different specialists)
-- [ ] Tournaments / seasons with brackets and ranked prizes
-- [ ] Items & consumables (gene splicers, exposure boosters, stamina tonics)
-- [ ] Achievements + expanded Codex lore
+### ✅ v0.3 — Content & progression
+- [x] Two more biomes (Cinderveil Wastes 🌋, Sapphire Shallows 🐚) + matching evolution branches
+- [x] Cross-biome **hybrid** apex forms (6 named hybrids + the Chimerax fallback)
+- [x] Tournaments / seasons: 8-racer knockout Cup with bracket view and ranked prizes
+- [x] Items & consumables (Gene Splicer, Exposure Serum, Stamina Tonic)
+- [x] Achievements (13) + expanded Codex lore for every species
 
 ### 🚀 v1.0 — Live game
 - [ ] PWA manifest + service worker (installable, true offline)

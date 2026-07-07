@@ -55,10 +55,26 @@
 
     g.hue = [R.int(0, 359), R.int(0, 359)];
     g.pattern = [R.int(0, EVO.PATTERNS.length - 1), R.int(0, EVO.PATTERNS.length - 1)];
-    g.bodySize = [statAllele(50, 15), statAllele(50, 15)];
+    g.bodySize = [statAllele(50, 18), statAllele(50, 18)];
     g.limb = [R.int(0, EVO.LIMBS.length - 1), R.int(0, EVO.LIMBS.length - 1)];
     g.eyes = [R.pick([2, 2, 2, 3, 4]), R.pick([2, 2, 2, 3, 4])];
     g.horn = [R.pick([0, 0, 1]), R.pick([0, 0, 1])];
+    // Colour morph: 0 normal, 1 iridescent, 2 albino, 3 melanic. Rare in the wild.
+    const morph = () => (R.chance(0.9) ? 0 : R.int(1, 3));
+    g.sheen = [morph(), morph()];
+    // Back ridge: 0 none, 1 low ridge, 2 full spines.
+    g.spikes = [R.pick([0, 0, 0, 1, 1, 2]), R.pick([0, 0, 0, 1, 1, 2])];
+    return g;
+  };
+
+  // Fill in genes added after a save was created, so old creatures keep
+  // working (and can pass the new genes on) after an update.
+  EVO.migrateGenome = function (g) {
+    EVO.ADAPT_GENES.forEach((k) => {
+      if (!g[k]) g[k] = [statAllele(10, 6), statAllele(10, 6)];
+    });
+    if (!g.sheen) g.sheen = [0, 0];
+    if (!g.spikes) g.spikes = [R.pick([0, 0, 1]), R.pick([0, 0, 1])];
     return g;
   };
 
@@ -98,10 +114,12 @@
 
     inheritDiscrete('hue', (v) => (v + R.int(-30, 30) + 360) % 360);
     inheritDiscrete('pattern', () => R.int(0, EVO.PATTERNS.length - 1));
-    inheritNumeric('bodySize', 10, 100, 8);
+    inheritNumeric('bodySize', 10, 100, 10);
     inheritDiscrete('limb', () => R.int(0, EVO.LIMBS.length - 1));
     inheritDiscrete('eyes', (v) => R.clamp(v + R.pick([-1, 1]), 2, 5));
     inheritDiscrete('horn', () => R.pick([0, 1]));
+    inheritDiscrete('sheen', () => R.int(0, 3)); // mutation can flip morphs
+    inheritDiscrete('spikes', () => R.int(0, 2));
     return child;
   };
 

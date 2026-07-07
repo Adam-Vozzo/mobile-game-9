@@ -25,10 +25,16 @@
         market: [],
         stableCap: 8,
         log: [],
-        stats: { racesRun: 0, wins: 0, bred: 0, evolutions: 0, explored: 0 },
+        stats: { racesRun: 0, wins: 0, bred: 0, evolutions: 0, explored: 0, tournamentsPlayed: 0, tournamentsWon: 0 },
         discovered: { grubling: true },
         goalsDone: {},
+        achievementsDone: {},
+        seenTraits: {},
+        items: { splicer: 0, serum: 0, tonic: 0 },
+        pedigree: {},
+        tutorialDone: false,
       };
+      stable.forEach((c) => this.registerPedigree(c));
       this.refreshMarket();
       this.save();
       return this.state;
@@ -44,10 +50,26 @@
         // Back-compat guards.
         this.state.discovered = this.state.discovered || { grubling: true };
         this.state.stats = this.state.stats || { racesRun: 0, wins: 0, bred: 0, evolutions: 0, explored: 0 };
-        if (this.state.stats.explored == null) this.state.stats.explored = 0;
+        ['explored', 'tournamentsPlayed', 'tournamentsWon'].forEach((k) => {
+          if (this.state.stats[k] == null) this.state.stats[k] = 0;
+        });
         this.state.goalsDone = this.state.goalsDone || {};
-        this.state.stable.forEach((c) => { if (!c.traits) c.traits = []; });
-        this.state.market.forEach((c) => { if (!c.traits) c.traits = []; });
+        this.state.achievementsDone = this.state.achievementsDone || {};
+        this.state.seenTraits = this.state.seenTraits || {};
+        this.state.items = this.state.items || { splicer: 0, serum: 0, tonic: 0 };
+        this.state.pedigree = this.state.pedigree || {};
+        // Existing players skip the tutorial; only brand-new games see it.
+        if (this.state.tutorialDone == null) this.state.tutorialDone = true;
+        // Migrate creatures to genes/biomes added after this save was created.
+        const migrate = (c) => {
+          if (!c.traits) c.traits = [];
+          EVO.migrateGenome(c.genome);
+          EVO.BIOME_KEYS.forEach((b) => { if (c.biomeExposure[b] == null) c.biomeExposure[b] = 0; });
+          this.registerPedigree(c);
+          this.noteTraits(c);
+        };
+        this.state.stable.forEach(migrate);
+        this.state.market.forEach((c) => { if (!c.traits) c.traits = []; EVO.migrateGenome(c.genome); });
         return this.state;
       } catch (e) {
         console.warn('Load failed', e);
@@ -184,6 +206,25 @@
       if (!this.state.discovered[c.species]) {
         this.state.discovered[c.species] = true;
       }
+      this.registerPedigree(c);
+      this.noteTraits(c);
+    },
+
+    // Permanent, lightweight record of every creature the player has owned,
+    // so the family-tree viewer works even after ancestors are sold.
+    registerPedigree(c) {
+      if (!this.state.pedigree) this.state.pedigree = {};
+      this.state.pedigree[c.id] = {
+        n: c.name,
+        s: c.species,
+        x: c.sex,
+        g: c.generation,
+        p: c.parents || null,
+      };
+    },
+
+    noteTraits(c) {
+      (c.traits || []).forEach((t) => { this.state.seenTraits[t] = true; });
     },
 
     // ---- Exploration ----------------------------------------------------
@@ -216,7 +257,7 @@
         const existing = c.traits || [];
         if (existing.length < 2) {
           const t = R.pick(EVO.TRAIT_KEYS.filter((k) => !existing.includes(k)));
-          if (t) { c.traits = existing.concat(t); finds.trait = t; }
+          if (t) { c.traits = existing.concat(t); finds.trait = t; this.noteTraits(c); }
         }
       }
 
@@ -257,8 +298,8 @@
       return { ok: true };
     },
 
-    // ---- Goals ----------------------------------------------------------
-    // Returns any goals newly completed this check (and pays them out).
+    // ---- Goals & achievements --------------------------------------------
+    // Returns any goals/achievements newly completed (and pays them out).
     checkGoals() {
       const newly = [];
       EVO.GOALS.forEach((g) => {
@@ -269,8 +310,102 @@
           this.logMsg(`Goal complete — ${g.name}! +${g.reward} coins.`);
         }
       });
+      EVO.ACHIEVEMENTS.forEach((a) => {
+        if (!this.state.achievementsDone[a.key] && a.test(this.state)) {
+          this.state.achievementsDone[a.key] = this.state.day;
+          this.state.coins += a.reward;
+          newly.push(a);
+          this.logMsg(`🏅 Achievement — ${a.name}! +${a.reward} coins.`);
+        }
+      });
       if (newly.length) this.save();
       return newly;
+    },
+
+    // ---- Items ------------------------------------------------------------
+    buyItem(key) {
+      const item = EVO.ITEMS[key];
+      if (!item) return { ok: false, msg: 'Unknown item.' };
+      if (this.state.coins < item.cost) return { ok: false, msg: 'Not enough coins.' };
+      this.state.coins -= item.cost;
+      this.state.items[key] = (this.state.items[key] || 0) + 1;
+      this.logMsg(`Bought a ${item.name}.`);
+      this.save();
+      return { ok: true };
+    },
+
+    useSplicer(creatureId) {
+      if ((this.state.items.splicer || 0) < 1) return { ok: false, msg: 'No Gene Splicer in stock.' };
+      const c = this.getCreature(creatureId);
+      if (!c) return { ok: false, msg: 'Creature missing.' };
+      const gene = R.pick(EVO.STAT_GENES);
+      const boost = R.int(5, 12);
+      c.genome[gene] = c.genome[gene].map((v) => R.clamp(v + boost, 1, 100));
+      this.state.items.splicer--;
+      this.logMsg(`🧪 Spliced ${c.name}: ${gene} +${boost}.`);
+      this.save();
+      return { ok: true, gene, boost };
+    },
+
+    useSerum(creatureId, biome) {
+      if ((this.state.items.serum || 0) < 1) return { ok: false, msg: 'No Exposure Serum in stock.' };
+      const c = this.getCreature(creatureId);
+      if (!c || !EVO.BIOMES[biome]) return { ok: false, msg: 'Invalid target.' };
+      c.biomeExposure[biome] = (c.biomeExposure[biome] || 0) + 4;
+      this.state.items.serum--;
+      this.logMsg(`💉 ${c.name} gained deep exposure to ${EVO.BIOMES[biome].name}.`);
+      this.save();
+      return { ok: true };
+    },
+
+    useTonic(creatureId) {
+      if ((this.state.items.tonic || 0) < 1) return { ok: false, msg: 'No Stamina Tonic in stock.' };
+      const c = this.getCreature(creatureId);
+      if (!c) return { ok: false, msg: 'Creature missing.' };
+      if (c.tonic) return { ok: false, msg: `${c.name} is already tonic-charged.` };
+      c.tonic = true;
+      this.state.items.tonic--;
+      this.logMsg(`🍵 ${c.name} drank a Stamina Tonic — boosted for the next race.`);
+      this.save();
+      return { ok: true };
+    },
+
+    // ---- Tournaments -------------------------------------------------------
+    seasonNumber() {
+      return Math.floor((this.state.day - 1) / EVO.TOURNAMENT.seasonDays) + 1;
+    },
+
+    canTournament(racerId) {
+      if (!racerId || !this.state.stable.find((c) => c.id === racerId)) return { ok: false, msg: 'Pick a racer first.' };
+      if (this.state.coins < EVO.TOURNAMENT.entry) return { ok: false, msg: `Entry costs ${EVO.TOURNAMENT.entry} coins.` };
+      return { ok: true };
+    },
+
+    payTournamentEntry() {
+      this.state.coins -= EVO.TOURNAMENT.entry;
+      this.save();
+    },
+
+    // Called once the bracket has fully resolved.
+    recordTournament(placement, playerId, biome) {
+      const player = this.getCreature(playerId);
+      const prize = EVO.TOURNAMENT.prizes[placement] || EVO.TOURNAMENT.prizes.out;
+      this.state.coins += prize;
+      this.state.stats.tournamentsPlayed++;
+      if (placement === 1) this.state.stats.tournamentsWon++;
+      if (player) {
+        player.races += 2;
+        player.age++;
+        player.biomeExposure[biome] = (player.biomeExposure[biome] || 0) + 2;
+        if (placement === 1) player.wins++;
+        if (player.tonic) delete player.tonic;
+      }
+      this.state.day += 2;
+      this.refreshMarket();
+      const label = placement === 1 ? '🏆 CHAMPION of' : (typeof placement === 'number' ? `#${placement} in` : 'eliminated in');
+      this.logMsg(`${player ? player.name : 'Your racer'} — ${label} the Season ${this.seasonNumber()} Cup at ${EVO.BIOMES[biome].name}. +${prize} coins.`);
+      this.save();
+      return { prize };
     },
 
     // ---- Racing ---------------------------------------------------------
@@ -283,6 +418,7 @@
         player.biomeExposure[biome] = (player.biomeExposure[biome] || 0) + 1;
         if (pos === 0) player.wins++;
         player.age++;
+        if (player.tonic) delete player.tonic; // consumable spent
       }
       const prize = EVO.racePrize(pos, entryFee);
       this.state.coins += prize;
@@ -325,6 +461,25 @@
       e[b] = Math.floor(((mom.biomeExposure[b] || 0) + (dad.biomeExposure[b] || 0)) / 4);
     });
     return e;
+  };
+
+  // Difficulty rubber-band: rival quality tracks the entrant's rating (so
+  // races stay competitive as your bloodline improves) with a gentle day
+  // creep, instead of scaling on day alone and running away from the player.
+  EVO.rivalQuality = function (player, day, boost) {
+    const r = EVO.rating(player); // roughly 35..115
+    let q = 0.26 + (r - 35) * 0.0075;
+    q += Math.min(0.08, (day || 1) * 0.0015);
+    return R.clamp(q + (boost || 0), 0.22, 0.92);
+  };
+
+  // Build one AI rival tuned to the given quality and biome.
+  EVO.makeRival = function (quality, biome) {
+    const rival = EVO.makeCreature(EVO.makeWildGenome(R.clamp(quality + R.float(-0.1, 0.12), 0.15, 0.95)), { generation: 1 });
+    const ak = 'adapt_' + biome;
+    const hi = Math.round(30 + quality * 45);
+    rival.genome[ak] = [R.int(18, hi), R.int(18, hi)];
+    return rival;
   };
 
   // Breeding predictor: simulate N offspring to estimate stat ranges and the

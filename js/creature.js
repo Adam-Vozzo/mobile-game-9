@@ -18,7 +18,7 @@
       parents: opts.parents || null, // [id, id]
       // biomeExposure records how many races this creature has run per biome,
       // which drives directed evolution when it breeds.
-      biomeExposure: opts.biomeExposure || { dune: 0, bog: 0, crag: 0, tundra: 0 },
+      biomeExposure: opts.biomeExposure || EVO.BIOME_KEYS.reduce((o, b) => ((o[b] = 0), o), {}),
       races: 0,
       wins: 0,
       age: 0,          // increments each breeding cycle; affects fertility
@@ -73,10 +73,24 @@
   // when BOTH parents share a species path and the child's adaptation to the
   // target biome clears the threshold for the next tier.
   EVO.decideSpecies = function (mom, dad, childGenome) {
-    // Base: children inherit the LOWER tier parent's species as a starting
-    // point unless they qualify to evolve.
     const momSp = EVO.SPECIES[mom.species];
     const dadSp = EVO.SPECIES[dad.species];
+
+    // Hybrid metamorphosis: two DIFFERENT tier-1 specialists whose child is
+    // strongly adapted to BOTH parent biomes fuse into a hybrid apex form.
+    if (momSp.tier === 1 && dadSp.tier === 1 && momSp.biome !== dadSp.biome) {
+      const a = momSp.biome, b = dadSp.biome;
+      const adA = (childGenome['adapt_' + a][0] + childGenome['adapt_' + a][1]) / 2;
+      const adB = (childGenome['adapt_' + b][0] + childGenome['adapt_' + b][1]) / 2;
+      if (adA >= EVO.HYBRID_THRESHOLD && adB >= EVO.HYBRID_THRESHOLD) {
+        const key = [a, b].sort().join('|');
+        const spKey = EVO.HYBRIDS[key] || 'chimerax';
+        return { species: spKey, evolved: true, hybrid: true };
+      }
+    }
+
+    // Base: children inherit the LOWER tier parent's species as a starting
+    // point unless they qualify to evolve.
     const baseSp = momSp.tier <= dadSp.tier ? mom.species : dad.species;
 
     const evolveMap = EVO.EVOLVE_NEXT[baseSp];

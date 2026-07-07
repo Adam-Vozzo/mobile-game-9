@@ -17,6 +17,7 @@
     <div class="spacer"></div>
     <span class="pill" id="day">Day 1</span>
     <span class="pill coins">🪙 <span id="coins">0</span></span>
+    <button class="pill help-btn" id="help-btn" aria-label="How to play">?</button>
   </div>
 
   <main>
@@ -64,8 +65,16 @@
       <div class="section-title">Choose your racer</div>
       <div class="grid" id="race-racer-grid"></div>
       <button class="btn gold block" id="race-btn" style="margin-top:12px">Enter Race</button>
-      <div class="track-wrap" id="track-wrap"><div id="track"></div></div>
+      <div class="track-wrap" id="track-wrap">
+        <div class="commentary" id="commentary"></div>
+        <div id="track"></div>
+      </div>
       <div id="race-results"></div>
+
+      <div class="section-title" style="margin-top:22px">Tournament</div>
+      <p class="hint">An 8-racer knockout cup on the selected track: survive your semifinal heat (top 2 advance) to reach the final. Big prizes, big rivals.</p>
+      <button class="btn block" id="tourney-btn"></button>
+      <div id="tourney"></div>
     </section>
 
     <!-- WILDS (explore + market) -->
@@ -73,6 +82,10 @@
       <div class="section-title">Expeditions</div>
       <p class="hint">Send a creature into a biome to explore. You'll find coins, wild eggs that lean into that biome, and rare mutation traits — and build the creature's biome exposure to steer its lineage's evolution.</p>
       <div id="explore-panel"></div>
+
+      <div class="section-title" style="margin-top:20px">Supply Shop</div>
+      <p class="hint">Consumables for the discerning breeder. Use them from a creature's detail sheet.</p>
+      <div id="shop"></div>
 
       <div class="section-title" style="margin-top:20px">Wild Market</div>
       <p class="hint">Fresh bloodlines wander through. Buy them to widen your gene pool.</p>
@@ -88,6 +101,8 @@
       <div id="codex"></div>
       <div class="section-title" style="margin-top:16px">Mutation Traits</div>
       <div id="trait-codex"></div>
+      <div class="section-title" style="margin-top:16px">Achievements</div>
+      <div id="achievements"></div>
       <div class="section-title" style="margin-top:16px">Career</div>
       <p class="hint" id="codex-stats"></p>
     </section>

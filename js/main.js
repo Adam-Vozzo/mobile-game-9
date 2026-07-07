@@ -9,6 +9,7 @@
     }
     EVO.UI.init();
     EVO.UI.showTab('stable');
+    if (!EVO.Game.state.tutorialDone) EVO.UI.showTutorial();
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);

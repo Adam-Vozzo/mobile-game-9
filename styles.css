@@ -267,3 +267,74 @@ main { padding: 12px 12px 90px; }
 .xkind .xk-name { font-size: 12px; font-weight: 700; }
 .xkind .xk-meta { font-size: 9px; color: var(--muted); }
 .xkind.disabled-look { opacity: .45; }
+
+/* ================ v0.2/v0.3: commentary, tournaments, items, lore ================ */
+
+/* Six biomes: explore picker wraps to 2 rows of 3 */
+.xbiomes { grid-template-columns: repeat(3, 1fr); }
+
+/* Help button */
+.help-btn { width: 32px; justify-content: center; font-weight: 800; color: var(--accent2); cursor: pointer; }
+
+/* Race commentary */
+.commentary { min-height: 20px; font-size: 13px; font-weight: 600; text-align: center; color: var(--accent); padding: 2px 4px 8px; }
+.commentary.banner { color: #fff; letter-spacing: 1px; font-size: 12px; }
+.commentary.pop { animation: compop .3s ease; }
+@keyframes compop { from { transform: scale(.9); opacity: .3; } to { transform: none; opacity: 1; } }
+.photo-banner { text-align: center; font-weight: 800; letter-spacing: 2px; color: var(--accent);
+  background: linear-gradient(90deg, transparent, rgba(255,209,102,.15), transparent);
+  padding: 8px; border-radius: 10px; margin-bottom: 8px; animation: compop .4s ease; }
+
+/* New biome track themes */
+.track-wrap.biome-ash { background: linear-gradient(180deg, #3a201a, #241210); border-color: #5a3428; }
+.track-wrap.biome-reef { background: linear-gradient(180deg, #16323e, #0e2029); border-color: #2a5468; }
+.track-wrap.biome-ash .lane { background: linear-gradient(90deg, rgba(224,101,74,.10), rgba(224,101,74,.24)); }
+.track-wrap.biome-reef .lane { background: linear-gradient(90deg, rgba(74,192,224,.10), rgba(74,192,224,.24)); }
+
+/* Tournament bracket */
+.bracket { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px; margin-top: 10px; }
+.bk-status { font-size: 13px; font-weight: 700; text-align: center; color: var(--accent); margin-bottom: 10px; }
+.bk-heats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.bk-heat { background: var(--bg2); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
+.bk-title { font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin-bottom: 5px; }
+.bk-row { font-size: 12px; padding: 3px 2px; color: var(--muted); display: flex; gap: 5px; align-items: center; }
+.bk-row.you { color: var(--ink); }
+.bk-row.adv { color: var(--accent2); }
+.bk-row .bk-tag { margin-left: auto; font-size: 10px; }
+
+/* Supply shop */
+.shop-item { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+.shop-emoji { font-size: 24px; width: 32px; text-align: center; }
+.shop-body { flex: 1; }
+.shop-name { font-weight: 700; font-size: 13px; }
+.shop-owned { color: var(--accent2); font-size: 12px; }
+.shop-blurb { font-size: 11px; color: var(--muted); line-height: 1.4; }
+
+/* Item usage row in detail sheet */
+.item-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-bottom: 8px; }
+.serum-biomes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-bottom: 8px; }
+
+/* Family tree */
+.tree { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 14px; }
+.tree-row { display: flex; gap: 6px; justify-content: center; }
+.tree-row.parents { position: relative; }
+.tree-box { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px;
+  font-size: 11px; text-align: center; line-height: 1.5; flex: 1; max-width: 130px; }
+.tree-box span { color: var(--muted); font-size: 10px; }
+.tree-box.self { border-color: var(--accent2); box-shadow: 0 0 0 1px var(--accent2) inset; max-width: 170px; }
+.tree-box.wild { opacity: .55; }
+
+/* Codex lore */
+.cx-lore { font-size: 11px; color: var(--muted); font-style: italic; margin-top: 4px; opacity: .85; line-height: 1.45; }
+
+/* Tutorial */
+.tut { text-align: center; }
+.tut-emoji { font-size: 44px; margin: 6px 0 4px; }
+.tut h2 { margin-bottom: 8px; }
+.tut p { color: var(--muted); font-size: 14px; line-height: 1.6; text-align: left; }
+.tut p b { color: var(--ink); }
+.tut p i { color: var(--accent); font-style: normal; }
+.tut-dots { display: flex; gap: 6px; justify-content: center; margin: 14px 0 6px; }
+.tut-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.tut-dot.on { background: var(--accent2); }

@@ -29,13 +29,20 @@
     const tier = sp.tier || 0;
     const traits = c.traits || [];
 
+    // Colour morph (sheen gene): 0 normal, 1 iridescent, 2 albino, 3 melanic.
+    const sheen = g.sheen ? g.sheen[0] : 0;
+    let sat = 62, light = [66, 54, 38], bellyL = 78, hue2 = hue;
+    if (sheen === 1) { hue2 = (hue + 95) % 360; }              // iridescent: two-tone
+    if (sheen === 2) { sat = 12; light = [88, 78, 62]; bellyL = 92; } // albino
+    if (sheen === 3) { sat = 45; light = [34, 26, 16]; bellyL = 38; } // melanic
+
     // Palette derived from hue with light/dark shading.
-    const bodyLight = `hsl(${hue}, 68%, 66%)`;
-    const bodyMid = `hsl(${hue}, 62%, 54%)`;
-    const bodyDark = `hsl(${hue}, 58%, 38%)`;
-    const belly = `hsl(${hue}, 55%, 78%)`;
-    const accent = `hsl(${(hue + 42) % 360}, 72%, 60%)`;
-    const accentDark = `hsl(${(hue + 42) % 360}, 65%, 44%)`;
+    const bodyLight = `hsl(${hue}, ${sat + 6}%, ${light[0]}%)`;
+    const bodyMid = `hsl(${hue2}, ${sat}%, ${light[1]}%)`;
+    const bodyDark = `hsl(${hue2}, ${sat - 4}%, ${light[2]}%)`;
+    const belly = `hsl(${hue}, ${Math.max(8, sat - 7)}%, ${bellyL}%)`;
+    const accent = sheen === 2 ? 'hsl(345, 55%, 78%)' : `hsl(${(hue + 42) % 360}, 72%, ${sheen === 3 ? 42 : 60}%)`;
+    const accentDark = `hsl(${(hue + 42) % 360}, 65%, ${sheen === 3 ? 30 : 44}%)`;
     const biomeColor = sp.biome ? EVO.BIOMES[sp.biome].color : accent;
 
     const cx = size / 2;
@@ -133,6 +140,36 @@
       crest += `<path d="M${cx - bw} ${cy + bh * 0.2} q ${-bw * 0.6} ${-bh * 0.2} ${-bw * 0.5} ${-bh * 0.8} q ${bw * 0.3} ${bh * 0.3} ${bw * 0.5} ${bh * 0.6} z" fill="url(#body${uid})"/>`;
     }
 
+    // Back ridge / spines (spikes gene): a row of small accent triangles.
+    const spikeLvl = g.spikes ? g.spikes[0] : 0;
+    let spikes = '';
+    if (spikeLvl > 0) {
+      const n = spikeLvl === 1 ? 3 : 5;
+      const h = spikeLvl === 1 ? bh * 0.22 : bh * 0.34;
+      for (let i = 0; i < n; i++) {
+        const t = (i / (n - 1)) * 1.3 - 0.65; // -0.65..0.65 across the back
+        const sx = cx + t * bw * 0.8;
+        // Follow the ellipse contour so spikes sit on the back.
+        const sy = cy - bh * Math.sqrt(Math.max(0, 1 - (t * 0.8) * (t * 0.8))) * 0.94;
+        spikes += `<path d="M${sx - bw * 0.07} ${sy} l ${bw * 0.07} ${-h} l ${bw * 0.07} ${h} z" fill="${accentDark}"/>`;
+      }
+    }
+
+    // Trait art: swiftborn = motion streaks; ironhide = armour plates.
+    let traitArt = '';
+    if (traits.includes('swiftborn')) {
+      for (let i = 0; i < 3; i++) {
+        const sy = cy - bh * 0.3 + i * bh * 0.3;
+        traitArt += `<line x1="${cx - bw * 1.75}" y1="${sy}" x2="${cx - bw * 1.05}" y2="${sy}" stroke="${accent}" stroke-width="${2.4 * scale}" stroke-linecap="round" opacity="${0.55 - i * 0.12}"/>`;
+      }
+    }
+    let armour = '';
+    if (traits.includes('ironhide')) {
+      armour = `
+        <path d="M${cx - bw * 0.55} ${cy - bh * 0.42} q ${bw * 0.55} ${-bh * 0.34} ${bw * 1.1} 0" stroke="#9aa3ad" stroke-width="${bw * 0.11}" fill="none" opacity="0.85" stroke-linecap="round"/>
+        <path d="M${cx - bw * 0.68} ${cy - bh * 0.1} q ${bw * 0.68} ${-bh * 0.36} ${bw * 1.36} 0" stroke="#87919c" stroke-width="${bw * 0.11}" fill="none" opacity="0.8" stroke-linecap="round"/>`;
+    }
+
     // ---- body ----
     const body = `
       <ellipse cx="${cx}" cy="${cy}" rx="${bw}" ry="${bh}" fill="url(#body${uid})"/>
@@ -175,7 +212,7 @@
     return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg" class="creature-svg" ${style}>
       ${defs}${aura}${shadow}
       <g class="cr-bob" ${style}>
-        ${wings}${tail}${limbs}${crest}${body}${overlay}${eyeEls}${mouth}
+        ${traitArt}${wings}${tail}${limbs}${spikes}${crest}${body}${overlay}${armour}${eyeEls}${mouth}
       </g>
     </svg>`;
   };

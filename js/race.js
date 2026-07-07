@@ -16,13 +16,15 @@
     // Adaptation maps to a multiplier roughly 0.78 .. 1.28.
     const adaptMul = 0.78 + (adapt / 100) * 0.5;
     const leanStat = EVO.BIOME_STAT[biome];
+    const tonic = !!c.tonic; // stamina tonic consumable: boosted next race
     return {
       // Top speed leans on the biome's key stat plus adaptation.
       topSpeed: (s.speed * 0.7 + s[leanStat] * 0.3) * adaptMul,
-      stamina: s.stamina * adaptMul,
+      stamina: s.stamina * adaptMul * (tonic ? 1.15 : 1),
       accel: s.accel,
       agility: s.agility,
       adaptMul,
+      startEnergy: tonic ? 115 : 100,
     };
   };
 
@@ -39,7 +41,7 @@
       idx: i,
       pos: 0,
       vel: 0,
-      energy: 100,
+      energy: profiles[i].startEnergy || 100,
       finishedTick: null,
     }));
 
@@ -91,13 +93,62 @@
         return b.pos - a.pos;
       });
 
+    // Photo finish: the top two crossed (or ended) within a whisker.
+    const photoFinish = ranked.length >= 2 && (
+      (ranked[0].finished && ranked[1].finished && Math.abs(ranked[0].finishedTick - ranked[1].finishedTick) <= 7) ||
+      (!ranked[1].finished && Math.abs(ranked[0].pos - ranked[1].pos) <= trackLen * 0.015)
+    );
+
     return {
       order: ranked.map((r) => r.id),
       orderIdx: ranked.map((r) => r.idx),
       frames,
       biome,
       ticks,
+      photoFinish,
     };
+  };
+
+  // Generate commentary beats from the frame data: start call, checkpoint
+  // leader calls, lead-change interjections, and a closing-stretch call.
+  // Returns [{frame, text}] sorted by frame; the UI shows each as the
+  // animation passes it.
+  EVO.raceCommentary = function (racers, result, playerId) {
+    const frames = result.frames;
+    const total = frames.length;
+    const b = EVO.BIOMES[result.biome];
+    const name = (i) => (racers[i].id === playerId ? 'your ' + racers[i].name : racers[i].name);
+    const leaderAt = (f) => {
+      const row = frames[Math.min(f, total - 1)];
+      let best = 0;
+      for (let i = 1; i < row.length; i++) if (row[i] > row[best]) best = i;
+      return best;
+    };
+
+    const events = [{ frame: 0, text: `🏁 And they're off across ${b.name}!` }];
+
+    // Lead changes, sampled coarsely so we call the fights, not the noise.
+    let last = leaderAt(4);
+    const swaps = [];
+    for (let f = 12; f < total - 8; f += 12) {
+      const l = leaderAt(f);
+      if (l !== last) { swaps.push({ frame: f, idx: l }); last = l; }
+    }
+    swaps.slice(0, 3).forEach((s) => {
+      events.push({ frame: s.frame, text: `⚡ ${name(s.idx)} surges into the lead!` });
+    });
+
+    // Checkpoint calls (skip any that land within 10 frames of a swap call).
+    [[0.33, 'a third of the way in'], [0.62, 'into the back stretch'], [0.85, 'into the final stretch']].forEach(([frac, label]) => {
+      const f = Math.floor(total * frac);
+      if (events.some((e) => Math.abs(e.frame - f) < 12)) return;
+      events.push({ frame: f, text: `${name(leaderAt(f))} leads ${label}.` });
+    });
+
+    if (result.photoFinish) {
+      events.push({ frame: Math.floor(total * 0.94), text: '📸 Neck and neck — it\'s going to be a photo finish!' });
+    }
+    return events.sort((a, b2) => a.frame - b2.frame);
   };
 
   // Prize money by finishing position and race tier.

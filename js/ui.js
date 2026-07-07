@@ -51,6 +51,12 @@
         log: $('#log'),
         codex: $('#codex'),
         traitCodex: $('#trait-codex'),
+        achievements: $('#achievements'),
+        commentary: $('#commentary'),
+        tourneyBtn: $('#tourney-btn'),
+        tourney: $('#tourney'),
+        shop: $('#shop'),
+        helpBtn: $('#help-btn'),
         modalBack: $('#modal-back'),
         modal: $('#modal'),
         toast: $('#toast'),
@@ -90,8 +96,11 @@
           this.breedSel = { mom: null, dad: null };
           this.renderAll();
           this.toast('New game started.');
+          this.showTutorial();
         }
       });
+      this.el.helpBtn.addEventListener('click', () => this.showTutorial());
+      this.el.tourneyBtn.addEventListener('click', () => this.startTournament());
       this.el.modalBack.addEventListener('click', (e) => {
         if (e.target === this.el.modalBack) this.closeModal();
       });
@@ -140,7 +149,7 @@
       const traitBadges = (c.traits || []).map((tk) => {
         const t = EVO.TRAITS[tk];
         return t ? `<span class="trait-badge" title="${t.name}: ${t.blurb}">${t.emoji}</span>` : '';
-      }).join('');
+      }).join('') + (c.tonic ? '<span class="trait-badge" title="Tonic-charged for the next race">🍵</span>' : '');
 
       div.innerHTML = `
         <span class="sex">${c.sex === 'M' ? '♂' : '♀'}</span>
@@ -293,6 +302,14 @@
         note.innerHTML = 'Select two parents. <b>Where they have raced</b> steers which biome their offspring adapt toward — and may trigger a metamorphosis.';
         return;
       }
+      // Hybrid potential: two different tier-1 specialists can fuse lineages.
+      const momSp = EVO.SPECIES[mom.species], dadSp = EVO.SPECIES[dad.species];
+      if (momSp.tier === 1 && dadSp.tier === 1 && momSp.biome !== dadSp.biome) {
+        const key = [momSp.biome, dadSp.biome].sort().join('|');
+        const hy = EVO.SPECIES[EVO.HYBRIDS[key] || 'chimerax'];
+        note.innerHTML = `⚡ <b>Hybrid potential!</b> A ${momSp.name} × ${dadSp.name} cross adapted to <b>both</b> ${EVO.BIOMES[momSp.biome].name} and ${EVO.BIOMES[dadSp.biome].name} can fuse into a <b>${hy.name}</b> — a cross-biome apex form.`;
+        return;
+      }
       const pressure = EVO.combinedPressure(mom, dad);
       if (!pressure) {
         note.innerHTML = 'Neither parent has raced yet, so there is <b>no evolutionary pressure</b>. Offspring will be a genetic blend. Race them first to direct their evolution!';
@@ -386,26 +403,137 @@
         ? 'Need coins to enter' : `Enter Race (−${EVO.RACE_ENTRY} coins)`;
       this.el.raceResults.innerHTML = '';
       this.el.track.innerHTML = '';
+      this.el.commentary.textContent = '';
+      this.el.commentary.classList.remove('banner');
+      this.el.tourneyBtn.textContent = `🏆 Enter the Season ${Game.seasonNumber()} Cup (−${EVO.TOURNAMENT.entry} coins)`;
+      this.el.tourneyBtn.disabled = Game.state.coins < EVO.TOURNAMENT.entry;
+      if (!this._tourney) this.el.tourney.innerHTML = '';
     },
 
-    buildField(playerId) {
-      // Player racer + 4 AI rivals scaled to the day for difficulty.
+    // ---- Tournament -------------------------------------------------------
+    startTournament() {
+      if (this._racing || this._tourney) return;
+      const check = Game.canTournament(this.raceRacerId);
+      if (!check.ok) { this.toast(check.msg); return; }
+      Game.payTournamentEntry();
+      this.renderHeader();
+
+      const playerId = this.raceRacerId;
+      const biome = this.raceBiome;
+      const player = Game.getCreature(playerId);
+      const q = EVO.rivalQuality(player, Game.state.day, 0.08);
+      const rivals = [];
+      for (let i = 0; i < 7; i++) rivals.push(EVO.makeRival(q, biome));
+
+      this._tourney = {
+        playerId, biome,
+        semiA: [player, rivals[0], rivals[1], rivals[2]],
+        semiB: [rivals[3], rivals[4], rivals[5], rivals[6]],
+        finalists: [],
+        semiBOrder: null,
+      };
+      this.renderBracket('Semifinal A — your heat. Top 2 advance!');
+      this.runTournamentHeat();
+    },
+
+    runTournamentHeat() {
+      const T = this._tourney;
+      this._racing = true;
+      const result = EVO.simulateRace(T.semiA, T.biome);
+      this.animateRace(T.semiA, result, () => {
+        this._racing = false;
+        const byId = {}; T.semiA.forEach((c) => (byId[c.id] = c));
+        const placed = result.order.map((id) => byId[id]);
+        T.semiAOrder = placed;
+        // Simulate the other heat instantly.
+        const resB = EVO.simulateRace(T.semiB, T.biome);
+        const byIdB = {}; T.semiB.forEach((c) => (byIdB[c.id] = c));
+        T.semiBOrder = resB.order.map((id) => byIdB[id]);
+        T.finalists = [placed[0], placed[1], T.semiBOrder[0], T.semiBOrder[1]];
+        const advanced = placed[0].id === T.playerId || placed[1].id === T.playerId;
+
+        if (advanced) {
+          this.renderBracket('You advanced! The final awaits.', true);
+        } else {
+          // Eliminated: resolve the final without the player.
+          const resF = EVO.simulateRace(T.finalists, T.biome);
+          const byIdF = {}; T.finalists.forEach((c) => (byIdF[c.id] = c));
+          T.finalOrder = resF.order.map((id) => byIdF[id]);
+          const rec = Game.recordTournament('out', T.playerId, T.biome);
+          this.renderHeader();
+          this.renderBracket(`Knocked out in the semis. ${T.finalOrder[0].name} took the cup. +${rec.prize} consolation.`);
+          this._tourney = null;
+          this.renderStable();
+          this.afterAction();
+        }
+      }, T.playerId);
+    },
+
+    runTournamentFinal() {
+      const T = this._tourney;
+      if (!T || this._racing) return;
+      this._racing = true;
+      const result = EVO.simulateRace(T.finalists, T.biome);
+      this.animateRace(T.finalists, result, () => {
+        this._racing = false;
+        const byId = {}; T.finalists.forEach((c) => (byId[c.id] = c));
+        T.finalOrder = result.order.map((id) => byId[id]);
+        const place = result.order.indexOf(T.playerId) + 1;
+        const rec = Game.recordTournament(place, T.playerId, T.biome);
+        this.renderHeader();
+        const msg = place === 1
+          ? `🏆 CHAMPION! ${byId[T.playerId].name} wins the Season ${Game.seasonNumber()} Cup! +${rec.prize} coins.`
+          : `Final result: #${place}. +${rec.prize} coins.`;
+        this.renderBracket(msg);
+        this._tourney = null;
+        this.renderStable();
+        this.renderCodex();
+        this.afterAction();
+      }, T.playerId);
+    },
+
+    renderBracket(statusMsg, showFinalBtn) {
+      const T = this._tourney;
+      const box = this.el.tourney;
+      const you = (c) => c && T && c.id === T.playerId;
+      const heat = (title, list, order) => {
+        const rows = (order || list).map((c, i) => `
+          <div class="bk-row ${you(c) ? 'you' : ''} ${order && i < 2 ? 'adv' : ''}">
+            <span>${order ? (i + 1) + '.' : '•'}</span> ${you(c) ? '<b>' + c.name + '</b>' : c.name}
+            ${order && i < 2 ? '<span class="bk-tag">▲</span>' : ''}
+          </div>`).join('');
+        return `<div class="bk-heat"><div class="bk-title">${title}</div>${rows}</div>`;
+      };
+      let html = `<div class="bracket"><div class="bk-status">${statusMsg}</div><div class="bk-heats">`;
+      if (T) {
+        html += heat('Semifinal A', T.semiA, T.semiAOrder);
+        html += heat('Semifinal B', T.semiB, T.semiBOrder);
+        if (T.finalOrder) html += heat('Final', T.finalists, T.finalOrder);
+        html += '</div>';
+        if (showFinalBtn) html += '<button class="btn gold block" id="final-btn" style="margin-top:10px">🏁 Race the Final</button>';
+      } else {
+        html += '</div>';
+      }
+      html += '</div>';
+      box.innerHTML = html;
+      const fb = $('#final-btn');
+      if (fb) fb.addEventListener('click', () => this.runTournamentFinal());
+    },
+
+    buildField(playerId, count, qualityBoost) {
+      // Player racer + AI rivals rubber-banded to the entrant's rating.
       const player = Game.getCreature(playerId);
       const field = [player];
-      const q = Math.min(0.8, 0.35 + Game.state.day * 0.02);
-      for (let i = 0; i < 4; i++) {
-        const rival = EVO.makeCreature(EVO.makeWildGenome(q + EVO.R.float(-0.12, 0.15)), { generation: 1 });
-        rival.name = EVO.randomName();
-        // Give rivals some adaptation to the chosen biome so it matters.
-        const ak = 'adapt_' + this.raceBiome;
-        rival.genome[ak] = [EVO.R.int(20, 70), EVO.R.int(20, 70)];
-        field.push(rival);
+      const q = EVO.rivalQuality(player, Game.state.day, qualityBoost || 0);
+      for (let i = 0; i < (count || 4); i++) {
+        field.push(EVO.makeRival(q, this.raceBiome));
       }
       return field;
     },
 
     doRace() {
       if (this._racing) return;
+      if (this._tourney) { this.toast('Finish the tournament first!'); return; }
       if (Game.state.coins < EVO.RACE_ENTRY) { this.toast('Not enough coins.'); return; }
       Game.state.coins -= EVO.RACE_ENTRY;
       this.renderHeader();
@@ -430,11 +558,19 @@
       }, playerId);
     },
 
-    animateRace(field, result, done, playerId) {
+    // opts: {startFrac, speed, banner, silent} — used by photo-finish replays.
+    animateRace(field, result, done, playerId, opts) {
+      opts = opts || {};
       const track = this.el.track;
       track.innerHTML = '';
-      this.el.raceResults.innerHTML = '';
+      if (!opts.silent) this.el.raceResults.innerHTML = '';
       this.el.raceBtn.disabled = true;
+
+      const commentaryBox = this.el.commentary;
+      const events = opts.silent ? [] : EVO.raceCommentary(field, result, playerId);
+      let nextEvent = 0;
+      commentaryBox.textContent = opts.banner || '';
+      commentaryBox.classList.toggle('banner', !!opts.banner);
 
       const lanes = field.map((c, i) => {
         const lane = document.createElement('div');
@@ -451,13 +587,21 @@
 
       const frames = result.frames;
       const total = frames.length;
-      let f = 0;
-      const speedup = 2; // frames per animation tick
+      let f = opts.startFrac ? Math.floor(total * opts.startFrac) : 0;
+      const speedup = opts.speed || 2; // frames advanced per animation tick
       const step = () => {
-        const row = frames[Math.min(f, total - 1)];
+        const fi = Math.min(Math.floor(f), total - 1);
+        const row = frames[fi];
         for (let i = 0; i < lanes.length; i++) {
           const laneW = lanes[i].parentElement.clientWidth - 44;
           lanes[i].style.transform = `translate(${row[i] * laneW}px, -50%)`;
+        }
+        while (nextEvent < events.length && events[nextEvent].frame <= fi) {
+          commentaryBox.textContent = events[nextEvent].text;
+          commentaryBox.classList.remove('pop');
+          void commentaryBox.offsetWidth; // restart the pop animation
+          commentaryBox.classList.add('pop');
+          nextEvent++;
         }
         f += speedup;
         if (f < total) {
@@ -469,11 +613,25 @@
       requestAnimationFrame(step);
     },
 
+    // Slow-motion replay of the final stretch, with a photo-finish banner.
+    replayFinish(field, result, playerId) {
+      if (this._racing) return;
+      this._racing = true;
+      this.animateRace(field, result, () => {
+        this._racing = false;
+        this.el.commentary.textContent = '📸 What a finish!';
+        this.el.raceBtn.disabled = Game.state.coins < EVO.RACE_ENTRY;
+      }, playerId, { startFrac: 0.78, speed: 0.55, banner: '📸 PHOTO FINISH — SLOW-MOTION REPLAY', silent: true });
+    },
+
     showResults(field, result, rec, playerId) {
       const box = this.el.raceResults;
       const byId = {};
       field.forEach((c) => (byId[c.id] = c));
       let html = '<div class="section-title">Results</div>';
+      if (result.photoFinish) {
+        html += '<div class="photo-banner">📸 PHOTO FINISH!</div>';
+      }
       result.order.forEach((id, pos) => {
         const c = byId[id];
         const you = id === playerId;
@@ -484,16 +642,47 @@
           ${prize ? `<span class="prize">+${prize}</span>` : ''}
         </div>`;
       });
+      if (result.photoFinish) {
+        html += '<button class="btn block sm" id="replay-btn">📸 Watch photo-finish replay</button>';
+      }
       if (rec.pos === 0) html += '<p class="hint" style="text-align:center">🏆 Victory! Race this lineage in the same biome, then breed to push its evolution.</p>';
       this.el.track.parentElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       box.innerHTML = html;
+      const rp = $('#replay-btn');
+      if (rp) rp.addEventListener('click', () => this.replayFinish(field, result, playerId));
       this.el.raceBtn.disabled = Game.state.coins < EVO.RACE_ENTRY;
     },
 
-    // ---- Wilds (Expeditions + Market) -----------------------------------
+    // ---- Wilds (Expeditions + Shop + Market) ------------------------------
     renderWilds() {
       this.renderExplore();
+      this.renderShop();
       this.renderMarket();
+    },
+
+    renderShop() {
+      const box = this.el.shop;
+      if (!box) return;
+      box.innerHTML = EVO.ITEM_KEYS.map((k) => {
+        const it = EVO.ITEMS[k];
+        const owned = Game.state.items[k] || 0;
+        const afford = Game.state.coins >= it.cost;
+        return `<div class="shop-item">
+          <div class="shop-emoji">${it.emoji}</div>
+          <div class="shop-body">
+            <div class="shop-name">${it.name} ${owned ? `<span class="shop-owned">×${owned}</span>` : ''}</div>
+            <div class="shop-blurb">${it.blurb}</div>
+          </div>
+          <button class="btn sm gold" data-item="${k}" ${afford ? '' : 'disabled'}>🪙 ${it.cost}</button>
+        </div>`;
+      }).join('');
+      $$('[data-item]', box).forEach((b) => b.addEventListener('click', () => {
+        const r = Game.buyItem(b.dataset.item);
+        this.toast(r.ok ? `${EVO.ITEMS[b.dataset.item].name} added to your kit.` : r.msg);
+        this.renderHeader();
+        this.renderShop();
+        this.afterAction();
+      }));
     },
 
     renderExplore() {
@@ -635,17 +824,36 @@
     // ---- Codex -----------------------------------------------------------
     renderCodex() {
       const box = this.el.codex;
-      const order = ['grubling', 'dunestrider', 'bogfin', 'craghorn', 'frostpelt', 'mirageraptor', 'leviatoad', 'thunderpeak', 'glaciarch'];
+      // Order: tier, then hybrids after pure forms, then name.
+      const order = Object.keys(EVO.SPECIES).sort((a, b) => {
+        const A = EVO.SPECIES[a], B = EVO.SPECIES[b];
+        if (A.tier !== B.tier) return A.tier - B.tier;
+        if (!!A.hybrid !== !!B.hybrid) return A.hybrid ? 1 : -1;
+        return A.name.localeCompare(B.name);
+      });
       box.innerHTML = order.map((key) => {
         const sp = EVO.SPECIES[key];
         const known = Game.state.discovered[key];
+        const where = sp.biome ? ' • ' + EVO.BIOMES[sp.biome].name
+          : (sp.biomes ? ' • ' + sp.biomes.map((b) => EVO.BIOMES[b].emoji).join('+') + ' hybrid' : (sp.hybrid ? ' • hybrid' : ''));
         return `<div class="codex-item ${known ? '' : 'locked'}">
           <div class="cx-emoji">${known ? sp.emoji : '❔'}</div>
           <div>
             <div class="cx-name">${known ? sp.name : '???'}</div>
-            <div class="cx-tier">Tier ${sp.tier}${sp.biome ? ' • ' + EVO.BIOMES[sp.biome].name : ''}</div>
-            <div class="cx-blurb">${known ? sp.blurb : 'Undiscovered — evolve or acquire to reveal.'}</div>
+            <div class="cx-tier">Tier ${sp.tier}${where}</div>
+            <div class="cx-blurb">${known ? sp.blurb : (sp.hybrid ? 'Undiscovered hybrid — breed two different specialists adapted to both their biomes.' : 'Undiscovered — evolve or acquire to reveal.')}</div>
+            ${known && sp.lore ? `<div class="cx-lore">“${sp.lore}”</div>` : ''}
           </div>
+        </div>`;
+      }).join('');
+
+      // Achievements
+      this.el.achievements.innerHTML = EVO.ACHIEVEMENTS.map((a) => {
+        const done = Game.state.achievementsDone[a.key];
+        return `<div class="goal-item ${done ? 'done' : ''}">
+          <span class="goal-check">${done ? '🏅' : '◻︎'}</span>
+          <div class="goal-body"><div class="goal-name">${a.name}</div><div class="goal-desc">${a.desc}</div></div>
+          <span class="goal-reward">${done ? 'D' + done : '+' + a.reward}</span>
         </div>`;
       }).join('');
       // Trait glossary — reveal blurb once any owned/seen creature carries it.
@@ -663,7 +871,7 @@
 
       const st = Game.state.stats;
       $('#codex-stats').innerHTML =
-        `Races: <b>${st.racesRun}</b> · Wins: <b>${st.wins}</b> · Bred: <b>${st.bred}</b> · Explored: <b>${st.explored || 0}</b> · Evolutions: <b>${st.evolutions}</b>`;
+        `Races: <b>${st.racesRun}</b> · Wins: <b>${st.wins}</b> · Bred: <b>${st.bred}</b> · Explored: <b>${st.explored || 0}</b> · Evolutions: <b>${st.evolutions}</b> · Cups won: <b>${st.tournamentsWon || 0}</b>`;
     },
 
     // ---- Detail modal ----------------------------------------------------
@@ -689,23 +897,59 @@
       `;
     },
 
+    // Family tree: this creature, its parents, and grandparents, resolved
+    // from the permanent pedigree registry (so sold ancestors still show).
+    lineageHTML(c) {
+      const ped = Game.state.pedigree || {};
+      const node = (id) => (id && ped[id]) || null;
+      const boxFor = (p, label) => {
+        if (!p) return `<div class="tree-box wild">${label}<br>🌿 Wild</div>`;
+        const sp = EVO.SPECIES[p.s] || EVO.SPECIES.grubling;
+        return `<div class="tree-box">${p.x === 'M' ? '♂' : '♀'} <b>${p.n}</b><br><span>${sp.emoji} ${sp.name}</span></div>`;
+      };
+      const pIds = c.parents || [null, null];
+      const mom = node(pIds[0]), dad = node(pIds[1]);
+      if (!mom && !dad) return '<p class="hint" style="text-align:center">🌿 Wild-caught — no recorded ancestry.</p>';
+      const gp = (p) => (p && p.p) || [null, null];
+      const [gm1, gf1] = gp(mom).map(node);
+      const [gm2, gf2] = gp(dad).map(node);
+      const hasGrand = gm1 || gf1 || gm2 || gf2;
+      return `<div class="tree">
+        ${hasGrand ? `<div class="tree-row">${boxFor(gm1, '')}${boxFor(gf1, '')}${boxFor(gm2, '')}${boxFor(gf2, '')}</div>` : ''}
+        <div class="tree-row parents">${boxFor(mom, '')}${boxFor(dad, '')}</div>
+        <div class="tree-row"><div class="tree-box self">⭐ <b>${c.name}</b></div></div>
+      </div>`;
+    },
+
     openDetail(c) {
       const sp = EVO.SPECIES[c.species];
       const best = EVO.bestBiome(c);
-      const parents = c.parents ? c.parents.map((id) => {
-        const p = Game.getCreature(id); return p ? p.name : '—';
-      }).join(' × ') : 'Wild-caught';
       const traitLine = (c.traits || []).length
         ? `<p style="text-align:center;color:var(--accent)">${c.traits.map((tk) => EVO.TRAITS[tk].emoji + ' ' + EVO.TRAITS[tk].name).join(' · ')}</p>` : '';
+      const items = Game.state.items || {};
+      const inStable = !!Game.state.stable.find((x) => x.id === c.id);
+      const itemRow = inStable ? `
+        <div class="section-title">Use an item</div>
+        <div class="item-row">
+          <button class="btn sm" id="use-splicer" ${items.splicer ? '' : 'disabled'}>🧪 Splice ${items.splicer ? '×' + items.splicer : ''}</button>
+          <button class="btn sm" id="use-serum" ${items.serum ? '' : 'disabled'}>💉 Serum ${items.serum ? '×' + items.serum : ''}</button>
+          <button class="btn sm" id="use-tonic" ${items.tonic && !c.tonic ? '' : 'disabled'}>${c.tonic ? '🍵 Charged' : '🍵 Tonic' + (items.tonic ? ' ×' + items.tonic : '')}</button>
+        </div>
+        <div class="serum-biomes" id="serum-biomes" style="display:none">${EVO.BIOME_KEYS.map((b) =>
+          `<button class="xbiome" data-serum="${b}" style="--biome:${EVO.BIOMES[b].color}"><span class="xb-emoji">${EVO.BIOMES[b].emoji}</span><span class="xb-name">${EVO.BIOMES[b].name.split(' ')[0]}</span></button>`).join('')}
+        </div>` : '';
       this.openModalHTML(`
         <div class="big-art">${EVO.creatureSVG(c, 150)}</div>
-        <h3 style="text-align:center;margin-bottom:2px">${c.name}</h3>
+        <h3 style="text-align:center;margin-bottom:2px">${c.name}${c.tonic ? ' 🍵' : ''}</h3>
         <p style="text-align:center;color:var(--muted);margin-top:0">
           ${c.sex === 'M' ? '♂' : '♀'} ${sp.emoji} ${sp.name} • Gen ${c.generation} • ★${EVO.rating(c)}
         </p>
         ${traitLine}
-        <p class="hint" style="text-align:center">Lineage: ${parents}<br>Best on: ${EVO.BIOMES[best].emoji} ${EVO.BIOMES[best].name} · ${c.races} races, ${c.wins} wins</p>
+        <p class="hint" style="text-align:center">Best on: ${EVO.BIOMES[best].emoji} ${EVO.BIOMES[best].name} · ${c.races} races, ${c.wins} wins</p>
         ${this.statDetailHTML(c)}
+        <div class="section-title">Family tree</div>
+        ${this.lineageHTML(c)}
+        ${itemRow}
         <div class="btnrow">
           <button class="btn ghost sm" id="detail-sell">Sell · 🪙 ${Math.round(EVO.priceOf(c) * 0.6)}</button>
           <button class="btn primary block" onclick="EVO.UI.closeModal()">Close</button>
@@ -720,6 +964,74 @@
           this.closeModal(); this.renderHeader(); this.renderStable(); this.renderBreed(); this.renderRace();
         }
       });
+      const splice = $('#use-splicer');
+      if (splice) splice.addEventListener('click', () => {
+        const r = Game.useSplicer(c.id);
+        this.toast(r.ok ? `🧪 ${r.gene} +${r.boost}!` : r.msg);
+        if (r.ok) { this.renderStable(); this.openDetail(Game.getCreature(c.id)); }
+      });
+      const serumBtn = $('#use-serum');
+      if (serumBtn) serumBtn.addEventListener('click', () => {
+        const p = $('#serum-biomes');
+        p.style.display = p.style.display === 'none' ? 'grid' : 'none';
+      });
+      $$('[data-serum]').forEach((b) => b.addEventListener('click', () => {
+        const r = Game.useSerum(c.id, b.dataset.serum);
+        this.toast(r.ok ? `💉 +4 ${EVO.BIOMES[b.dataset.serum].name} exposure.` : r.msg);
+        if (r.ok) this.openDetail(Game.getCreature(c.id));
+      }));
+      const tonicBtn = $('#use-tonic');
+      if (tonicBtn) tonicBtn.addEventListener('click', () => {
+        const r = Game.useTonic(c.id);
+        this.toast(r.ok ? `🍵 ${c.name} is charged for the next race!` : r.msg);
+        if (r.ok) { this.renderStable(); this.openDetail(Game.getCreature(c.id)); }
+      });
+    },
+
+    // ---- Tutorial ---------------------------------------------------------
+    TUTORIAL_STEPS: [
+      { emoji: '🧬', title: 'Welcome to Evolve Racers', body: 'Breed creatures, race them for coins, and shape their evolution. <b>You are the selection pressure</b> — where a bloodline lives decides what it becomes.' },
+      { emoji: '🏁', title: 'Race the biomes', body: 'Each track belongs to a biome. A creature\'s <b>adaptation</b> to that biome matters more than raw stats — the coloured bars on every card show where it thrives. Racing there builds its <b>exposure</b>.' },
+      { emoji: '💞', title: 'Breed with intent', body: 'Pick two parents in the Lab. The biome they\'ve raced or explored most pushes their offspring\'s adaptation that way, and the <b>predictor</b> shows stat ranges and evolution odds before you commit.' },
+      { emoji: '✨', title: 'Trigger metamorphosis', body: 'Push a lineage\'s adaptation past the threshold and its next offspring is <b>born a new species</b> — stronger, and visibly different. Cross two <i>different</i> specialists to discover rare <b>hybrids</b>.' },
+      { emoji: '🧭', title: 'Explore & compete', body: 'Send creatures on <b>expeditions</b> for eggs, coins, and mutation traits. Buy items in the shop, chase the goal ladder, and enter <b>tournaments</b> for the big prizes. Good luck, breeder!' },
+    ],
+
+    showTutorial() {
+      this._tutStep = 0;
+      this.renderTutorialStep();
+    },
+
+    renderTutorialStep() {
+      const i = this._tutStep;
+      const steps = this.TUTORIAL_STEPS;
+      const s = steps[i];
+      const dots = steps.map((_, j) => `<span class="tut-dot ${j === i ? 'on' : ''}"></span>`).join('');
+      const last = i === steps.length - 1;
+      this.openModalHTML(`
+        <div class="tut">
+          <div class="tut-emoji">${s.emoji}</div>
+          <h2>${s.title}</h2>
+          <p>${s.body}</p>
+          <div class="tut-dots">${dots}</div>
+          <div class="btnrow">
+            ${last ? '' : '<button class="btn ghost sm" id="tut-skip">Skip</button>'}
+            <button class="btn primary block" id="tut-next">${last ? "Let's evolve! 🧬" : 'Next'}</button>
+          </div>
+        </div>
+      `);
+      const finish = () => {
+        Game.state.tutorialDone = true;
+        Game.save();
+        this.closeModal();
+      };
+      $('#tut-next').addEventListener('click', () => {
+        if (last) return finish();
+        this._tutStep++;
+        this.renderTutorialStep();
+      });
+      const skip = $('#tut-skip');
+      if (skip) skip.addEventListener('click', finish);
     },
 
     // ---- Modal / toast helpers ------------------------------------------
