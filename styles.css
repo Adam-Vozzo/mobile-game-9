@@ -381,6 +381,40 @@ main { padding: 12px 12px 90px; }
 :root.synthwave .btn.gold { box-shadow: 0 0 14px rgba(255,94,219,.35); }
 :root.synthwave .creature-svg { filter: drop-shadow(0 0 5px rgba(255,94,219,.25)); }
 
+/* Story mode */
+.story-panel { background: linear-gradient(135deg, rgba(6,214,160,.08), rgba(255,209,102,.05)), var(--panel);
+  border: 1px solid var(--accent2); border-radius: 14px; padding: 12px 14px; margin-bottom: 16px; }
+.story-panel.done { border-color: var(--line); opacity: .8; }
+.story-top { display: flex; align-items: center; gap: 8px; }
+.story-ch { font-weight: 800; font-size: 14px; letter-spacing: .2px; }
+.story-more { margin-left: auto; background: var(--bg2); border: 1px solid var(--line); border-radius: 8px;
+  color: var(--ink); font-size: 14px; padding: 4px 9px; cursor: pointer; }
+.story-mentor { font-size: 12px; color: var(--muted); margin: 7px 0 9px; line-height: 1.5; }
+.story-hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.story-obj { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 5px 0; }
+.story-obj .story-check { color: var(--muted); width: 16px; text-align: center; }
+.story-obj.done .story-check { color: var(--accent2); }
+.story-obj.done .story-desc { color: var(--muted); text-decoration: line-through; }
+.story-obj .story-desc { flex: 1; }
+.story-obj .story-prog { font-size: 11px; color: var(--accent2); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Mentor dialogue */
+.mentor-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.mentor-avatar { font-size: 34px; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 50%; }
+.mentor-name { font-weight: 800; font-size: 15px; }
+.mentor-sub { font-size: 11px; color: var(--accent2); }
+.mentor-line { font-size: 14px; color: var(--muted); line-height: 1.65; font-style: italic;
+  border-left: 3px solid var(--line); padding-left: 12px; margin: 10px 0; }
+.unlock-row { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  border-radius: 10px; padding: 9px 12px; font-size: 13px; margin-bottom: 7px; }
+
+/* Locked tabs & biome cards */
+.tab.locked { opacity: .35; filter: grayscale(1); }
+.biome-card.locked { opacity: .55; }
+.biome-card.locked .bname { color: var(--muted); }
+.predictor-card.teaser { text-align: center; color: var(--muted); font-size: 13px; line-height: 1.5; }
+
 /* Tutorial */
 .tut { text-align: center; }
 .tut-emoji { font-size: 44px; margin: 6px 0 4px; }

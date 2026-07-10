@@ -44,6 +44,20 @@ Most breeding games average parent stats. Evolve Racers models the player as the
 
 So the strategic fantasy is: *choose where your bloodline lives, and watch it become something built for that world.* It's visible, too — evolved forms grow crests, tails, wings, and biome-colored auras.
 
+### Onboarding — story mode
+New players don't face all nine systems at once. **Chapter 1** starts with just a stable, three grublings, and one desert track; a mentor (Elder Fen 🐢) sets small objectives, and each completed chapter unlocks the next system with a story beat:
+
+| Chapter | Teaches | Unlocks on completion |
+| --- | --- | --- |
+| 1 · First Steps 🐣 | Racing basics | Breeding Lab |
+| 2 · The Bloodline 🧬 | Inheritance | 3 more biomes + offspring predictor |
+| 3 · Four Winds 🗺️ | Adaptation & exposure | The Wilds (expeditions + market) |
+| 4 · Into the Wild 🧭 | Exploration & fresh blood | Codex, goals, shop, 2 exotic biomes |
+| 5 · Metamorphosis ✨ | Directed evolution | Season Cup tournaments |
+| 6 · The Championship 🏆 | Mastery | Endless mode |
+
+Locked tabs and biomes stay *visible* (greyed with a lock and their unlock chapter) so the world always signals there's more coming. A story panel on the Stable tab tracks live objective progress, and the 🗝️ Free-roam Dev Tweak bypasses all locks for testing.
+
 ### Core loop
 ```
         ┌───────────────────────────────────────────┐
@@ -75,7 +89,8 @@ So the strategic fantasy is: *choose where your bloodline lives, and watch it be
 | **Family tree** | Every creature's sheet shows a three-generation pedigree, kept even after ancestors are sold. |
 | **Economy** | Earn coins from races, tournaments, expeditions, goals, and achievements; spend on breeding, entries, items, wild-market creatures, and stable expansion. |
 | **Goals & achievements** | An 8-step guided goal ladder plus 13 long-tail achievements. |
-| **Codex** | Tracks discovered species (with lore), mutation traits, achievements, and career stats. First launch opens a 5-step tutorial (replayable via the ? button). |
+| **Story mode** | The game opens up progressively: Elder Fen 🐢 guides you through 6 chapters, each teaching one system (race → breed → biomes → wilds → evolution → tournaments) and unlocking the next when its objectives are met. Veterans' saves skip straight to endless mode. |
+| **Codex** | Tracks discovered species (with lore), mutation traits, achievements, and career stats. The ? button opens the current chapter briefing, with the full manual one tap away. |
 
 ### Procedural art
 Every creature is drawn from its genome as an inline SVG — hue, pattern, body size, limb type (legs/fins/talons/paws), eye count, and horns are all heritable, so a bloodline is visually recognisable and **evolution is something you can see**, not just read.
@@ -111,7 +126,13 @@ Single-hand, thumb-friendly, five-tab bottom nav: **Stable · Breed · Race · W
 - [x] Items & consumables (Gene Splicer, Exposure Serum, Stamina Tonic)
 - [x] Achievements (13) + expanded Codex lore for every species
 
-### 🔬 v0.4 — Proposed (next up)
+### ✅ v0.4 — Onboarding & story
+- [x] **Story mode**: 6 mentor-guided chapters with objectives, dialogue, and celebration modals
+- [x] **Progressive unlocks**: tabs, biomes, predictor, goals, shop, and tournaments gate open chapter by chapter; locked UI teases its unlock chapter
+- [x] Chapter briefing on the ? button (with the full manual one tap deeper) and a live objectives panel in the Stable
+- [x] 🗝️ Free-roam Dev Tweak to bypass story locks; pre-story saves auto-migrate to endless mode
+
+### 🔬 v0.5 — Proposed (next up)
 New feature proposals. Visual/UX experiments land first behind the in-game **🧪 Dev Tweaks** menu (see below) so they can be evaluated on-device before graduating to defaults — six are live there now (pixel art, synthwave theme, chaos mutations, gene inspector, fast races, free-entry sandbox).
 - [ ] **Pixel-art render style** — 16×16 sprite renderer driven by the same genome · *prototype shipped, testable in Dev Tweaks now*
 - [ ] **Synthwave UI theme** — neon palette · *prototype shipped, testable in Dev Tweaks now*
@@ -150,6 +171,7 @@ Current experiments:
 | Gameplay | 🔬 **Gene inspector** | Adds a raw allele-pair table to the creature sheet, exposing the genotype behind every expressed gene. |
 | Testing | ⏩ **Fast races** | Runs race animations at ~2.5× speed. |
 | Testing | 🎲 **Free-entry sandbox** | Zeroes breeding, race, tournament, and expedition fees (market/shop prices stay real) for unconstrained testing. |
+| Testing | 🗝️ **Free roam** | Ignores story-mode locks — every system and biome available regardless of chapter. |
 
 ---
 

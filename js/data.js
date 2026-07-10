@@ -235,6 +235,111 @@
     { key: 'all_species', name: 'Grand Codex', desc: 'Discover every species.', reward: 500, test: (s) => Object.keys(EVO.SPECIES).every((k) => s.discovered[k]) },
   ];
 
+  // ---- Story mode / progressive unlocks -----------------------------------
+  // The game opens up chapter by chapter: each chapter teaches one system,
+  // its objectives prove the player has used it, and completing it unlocks
+  // the next system. Feature gating is driven by EVO.FEATURE_CHAPTER below.
+  EVO.MENTOR = { name: 'Elder Fen', emoji: '🐢' };
+
+  // Chapter a feature becomes available in (see EVO.unlocked in game.js).
+  EVO.FEATURE_CHAPTER = {
+    stable: 1, race: 1, biome_dune: 1,
+    breed: 2,
+    predictor: 3, biome_bog: 3, biome_crag: 3, biome_tundra: 3,
+    wilds: 4, market: 4,
+    codex: 5, shop: 5, goals: 5, biome_ash: 5, biome_reef: 5,
+    tournament: 6,
+  };
+
+  EVO.CHAPTERS = [
+    {
+      num: 1, title: 'First Steps', emoji: '🐣',
+      hint: 'Race at the Dunes and learn how your creatures run.',
+      intro: [
+        'So — you\'re the new keeper of the old stable. Three grublings, a pouch of coins, and the Sunscorch track next door. That\'s how every great breeder starts.',
+        'Enter a race or two. Don\'t worry about winning yet; worry about learning how your creature runs. Coins follow soon enough.',
+      ],
+      objectives: [
+        { desc: 'Run 2 races', prog: (s) => [Math.min(2, s.stats.racesRun), 2], test: (s) => s.stats.racesRun >= 2 },
+        { desc: 'Finish on the podium (top 3)', prog: (s) => [Math.min(1, s.stats.podiums || 0), 1], test: (s) => (s.stats.podiums || 0) >= 1 },
+      ],
+      unlocks: ['🧬 The Breeding Lab'],
+    },
+    {
+      num: 2, title: 'The Bloodline', emoji: '🧬',
+      hint: 'Pair two creatures in the Breeding Lab and raise your first hatchling.',
+      intro: [
+        'Racing earns coins; breeding builds legacies. Every creature carries two copies of each gene — a child takes one from each parent, and once in a while something new sneaks in.',
+        'Pair up your two best runners in the Lab. Then put the hatchling on the track — a bloodline only matters if it runs.',
+      ],
+      objectives: [
+        { desc: 'Breed your first hatchling', prog: (s) => [Math.min(1, s.stats.bred), 1], test: (s) => s.stats.bred >= 1 },
+        { desc: 'Race a creature you bred', prog: (s) => [Math.min(1, s.stats.homebredRaces || 0), 1], test: (s) => (s.stats.homebredRaces || 0) >= 1 },
+      ],
+      unlocks: ['🗺️ Three new biomes: Mirefen Bog, Skyreach Crags, Hollowfrost Tundra', '🔮 The Offspring Predictor'],
+    },
+    {
+      num: 3, title: 'Four Winds', emoji: '🗺️',
+      hint: 'Race across different biomes — where a creature runs leaves a mark its children inherit.',
+      intro: [
+        'The circuit is bigger than one desert. Bog, crag, tundra — each rewards different blood. Check the coloured bars on a creature\'s card: that\'s how well it fits each land.',
+        'And listen closely: where a creature races leaves a mark. Run the same biome again and again, and its children will be born a little more at home there. We call it pressure. You\'ll call it destiny.',
+      ],
+      objectives: [
+        { desc: 'Race in 3 different biomes', prog: (s) => [Math.min(3, Object.keys(s.stats.biomesRaced || {}).length), 3], test: (s) => Object.keys(s.stats.biomesRaced || {}).length >= 3 },
+        { desc: 'Build one creature\'s exposure to 4 in a single biome', prog: (s) => [Math.min(4, Math.max(0, ...s.stable.map((c) => Math.max(...EVO.BIOME_KEYS.map((b) => c.biomeExposure[b] || 0))))), 4], test: (s) => s.stable.some((c) => EVO.BIOME_KEYS.some((b) => (c.biomeExposure[b] || 0) >= 4)) },
+      ],
+      unlocks: ['🧭 The Wilds: expeditions & the wild market'],
+    },
+    {
+      num: 4, title: 'Into the Wild', emoji: '🧭',
+      hint: 'Send creatures on expeditions and grow your stable with wild blood.',
+      intro: [
+        'Beyond the tracks there\'s wilderness — and wilderness pays. Send a creature exploring: it comes back with coins, sometimes an egg, sometimes something stranger in its blood.',
+        'Fresh blood matters too. A stable bred only from itself goes stale; the market brings wanderers with genes you\'ve never seen.',
+      ],
+      objectives: [
+        { desc: 'Complete 2 expeditions', prog: (s) => [Math.min(2, s.stats.explored || 0), 2], test: (s) => (s.stats.explored || 0) >= 2 },
+        { desc: 'Grow your stable to 5 creatures', prog: (s) => [Math.min(5, s.stable.length), 5], test: (s) => s.stable.length >= 5 },
+      ],
+      unlocks: ['📖 The Codex & goal ladder', '🛒 The Supply Shop', '🌋 Cinderveil Wastes & 🐚 Sapphire Shallows'],
+    },
+    {
+      num: 5, title: 'Metamorphosis', emoji: '✨',
+      hint: 'Push a bloodline\'s adaptation past its threshold and evolve a specialist.',
+      intro: [
+        'Now you\'re ready for the deep secret. Push a bloodline far enough into one biome — race it there, explore it there, breed it there — and one day a hatchling is born *changed*. A new species. A specialist.',
+        'Keep a lineage devoted to a single land. When its adaptation runs high enough, the next egg will surprise you.',
+      ],
+      objectives: [
+        { desc: 'Evolve a creature into a specialist', prog: (s) => [Math.min(1, s.stats.evolutions), 1], test: (s) => s.stats.evolutions >= 1 },
+      ],
+      unlocks: ['🏆 Season Cup tournaments'],
+    },
+    {
+      num: 6, title: 'The Championship', emoji: '🏆',
+      hint: 'Enter the Season Cup and bring home the title.',
+      intro: [
+        'One thing left, keeper. The Season Cup — eight racers, two heats, one final. The purse is fat and the rivals are bred for it.',
+        'Take your best. Win it, and nobody calls this "the old stable" anymore. They\'ll call it yours.',
+      ],
+      objectives: [
+        { desc: 'Win a Season Cup tournament', prog: (s) => [Math.min(1, s.stats.tournamentsWon || 0), 1], test: (s) => (s.stats.tournamentsWon || 0) >= 1 },
+      ],
+      unlocks: ['🌅 Endless mode — the whole world is open'],
+    },
+    {
+      num: 7, title: 'The Open Road', emoji: '🌅',
+      hint: 'Story complete — chase hybrids, apex forms, and the whole Codex.',
+      intro: [
+        'The stable that started with three grublings has a champion\'s banner over the door. My work here is done.',
+        'The wilds are yours now. Chase the hybrids, the apex forms, the whole Codex — I\'ll be watching from the porch.',
+      ],
+      objectives: [],
+      unlocks: [],
+    },
+  ];
+
   EVO.NAME_PARTS = {
     prefix: ['Zeph', 'Bram', 'Kael', 'Nyx', 'Orin', 'Vael', 'Mossy', 'Cinder', 'Dusk', 'Fen', 'Grit', 'Halo', 'Juni', 'Koa', 'Lumen', 'Pip', 'Quill', 'Rune', 'Sable', 'Thorn', 'Umber', 'Wisp'],
     suffix: ['ix', 'or', 'a', 'us', 'een', 'ara', 'ic', 'oh', 'ly', 'per', 'wyn', 'dle', 'ket', 'row', 'sk', 'th'],

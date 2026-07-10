@@ -25,7 +25,7 @@
         market: [],
         stableCap: 8,
         log: [],
-        stats: { racesRun: 0, wins: 0, bred: 0, evolutions: 0, explored: 0, tournamentsPlayed: 0, tournamentsWon: 0 },
+        stats: { racesRun: 0, wins: 0, bred: 0, evolutions: 0, explored: 0, tournamentsPlayed: 0, tournamentsWon: 0, podiums: 0, homebredRaces: 0, biomesRaced: {} },
         discovered: { grubling: true },
         goalsDone: {},
         achievementsDone: {},
@@ -33,6 +33,7 @@
         items: { splicer: 0, serum: 0, tonic: 0 },
         pedigree: {},
         tutorialDone: false,
+        chapter: 1, // story-mode progress; systems unlock as chapters advance
       };
       stable.forEach((c) => this.registerPedigree(c));
       this.refreshMarket();
@@ -50,9 +51,12 @@
         // Back-compat guards.
         this.state.discovered = this.state.discovered || { grubling: true };
         this.state.stats = this.state.stats || { racesRun: 0, wins: 0, bred: 0, evolutions: 0, explored: 0 };
-        ['explored', 'tournamentsPlayed', 'tournamentsWon'].forEach((k) => {
+        ['explored', 'tournamentsPlayed', 'tournamentsWon', 'podiums', 'homebredRaces'].forEach((k) => {
           if (this.state.stats[k] == null) this.state.stats[k] = 0;
         });
+        if (!this.state.stats.biomesRaced) this.state.stats.biomesRaced = {};
+        // Saves from before story mode have seen everything — skip the story.
+        if (this.state.chapter == null) this.state.chapter = 7;
         this.state.goalsDone = this.state.goalsDone || {};
         this.state.achievementsDone = this.state.achievementsDone || {};
         this.state.seenTraits = this.state.seenTraits || {};
@@ -323,6 +327,21 @@
       return newly;
     },
 
+    // ---- Story chapters ----------------------------------------------------
+    // Advance the story when the current chapter's objectives are all met.
+    // Returns the completed chapter (for the UI to celebrate) or null.
+    checkChapter() {
+      const ch = EVO.CHAPTERS[this.state.chapter - 1];
+      if (!ch || !ch.objectives.length) return null;
+      if (ch.objectives.every((o) => o.test(this.state))) {
+        this.state.chapter++;
+        this.logMsg(`📖 Chapter ${ch.num} complete — ${ch.title}!`);
+        this.save();
+        return ch;
+      }
+      return null;
+    },
+
     // ---- Items ------------------------------------------------------------
     buyItem(key) {
       const item = EVO.ITEMS[key];
@@ -426,6 +445,9 @@
       this.state.coins += prize;
       this.state.stats.racesRun++;
       if (pos === 0) this.state.stats.wins++;
+      if (pos <= 2) this.state.stats.podiums = (this.state.stats.podiums || 0) + 1;
+      if (player && player.parents) this.state.stats.homebredRaces = (this.state.stats.homebredRaces || 0) + 1;
+      (this.state.stats.biomesRaced = this.state.stats.biomesRaced || {})[biome] = true;
       this.state.day++;
       if (this.state.day % 2 === 0) this.refreshMarket();
       this.logMsg(`${player ? player.name : 'Your racer'} finished #${pos + 1} at ${EVO.BIOMES[biome].name}. +${prize} coins.`);
@@ -463,6 +485,15 @@
       e[b] = Math.floor(((mom.biomeExposure[b] || 0) + (dad.biomeExposure[b] || 0)) / 4);
     });
     return e;
+  };
+
+  // Story-mode feature gate. A feature is available once the story reaches
+  // its chapter (EVO.FEATURE_CHAPTER), or always under the free-roam tweak.
+  EVO.unlocked = function (feature) {
+    if (EVO.DEV && EVO.DEV.storyFree) return true;
+    const st = Game.state;
+    if (!st) return true;
+    return (st.chapter || 7) >= (EVO.FEATURE_CHAPTER[feature] || 1);
   };
 
   // Difficulty rubber-band: rival quality tracks the entrant's rating (so

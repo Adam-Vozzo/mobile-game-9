@@ -9,7 +9,12 @@
     }
     EVO.UI.init();
     EVO.UI.showTab('stable');
-    if (!EVO.Game.state.tutorialDone) EVO.UI.showTutorial();
+    // First run: the mentor's Chapter 1 briefing is the tutorial.
+    if (!EVO.Game.state.tutorialDone) {
+      EVO.UI.showChapterBriefing();
+      EVO.Game.state.tutorialDone = true;
+      EVO.Game.save();
+    }
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);

@@ -27,9 +27,11 @@
       blurb: 'Run race animations at ~2.5× speed. Handy for long test sessions.' },
     { key: 'sandbox', group: 'Testing tools', emoji: '🎲', name: 'Free-entry sandbox',
       blurb: 'Breeding, race, tournament, and expedition fees cost 0. Market and shop prices stay real.' },
+    { key: 'storyFree', group: 'Testing tools', emoji: '🗝️', name: 'Free roam',
+      blurb: 'Ignore story-mode locks — every system and biome is available regardless of chapter.' },
   ];
 
-  EVO.DEV = { pixelArt: false, synthwave: false, chaosMutations: false, geneInspector: false, fastRaces: false, sandbox: false };
+  EVO.DEV = { pixelArt: false, synthwave: false, chaosMutations: false, geneInspector: false, fastRaces: false, sandbox: false, storyFree: false };
 
   // How many experiments are currently on (for badges/counters).
   EVO.devActive = function () {

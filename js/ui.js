@@ -7,6 +7,9 @@
   const $ = (sel, root) => (root || document).querySelector(sel);
   const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 
+  // Story-mode gating: which feature a tab needs (see EVO.FEATURE_CHAPTER).
+  const TAB_FEATURE = { breed: 'breed', wilds: 'wilds', codex: 'codex' };
+
   const UI = (EVO.UI = {
     breedSel: { mom: null, dad: null }, // creature ids
     raceBiome: 'dune',
@@ -71,11 +74,17 @@
     },
 
     showTab(name) {
+      if (TAB_FEATURE[name] && !EVO.unlocked(TAB_FEATURE[name])) {
+        const req = EVO.FEATURE_CHAPTER[TAB_FEATURE[name]];
+        const ch = EVO.CHAPTERS[req - 1];
+        this.toast(`🔒 Unlocks in Chapter ${req} — ${ch ? ch.title : ''}`);
+        return;
+      }
       $$('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
       Object.keys(this.el.views).forEach((k) => {
         this.el.views[k].classList.toggle('active', k === name);
       });
-      if (name === 'stable') { this.renderGoals(); this.renderStable(); }
+      if (name === 'stable') { this.renderStory(); this.renderGoals(); this.renderStable(); }
       if (name === 'breed') this.renderBreed();
       if (name === 'race') this.renderRace();
       if (name === 'wilds') this.renderWilds();
@@ -97,10 +106,10 @@
           this.breedSel = { mom: null, dad: null };
           this.renderAll();
           this.toast('New game started.');
-          this.showTutorial();
+          this.showChapterBriefing();
         }
       });
-      this.el.helpBtn.addEventListener('click', () => this.showTutorial());
+      this.el.helpBtn.addEventListener('click', () => this.showChapterBriefing());
       this.el.tourneyBtn.addEventListener('click', () => this.startTournament());
       $('#dev-btn').addEventListener('click', () => this.showDevTweaks());
       this.el.modalBack.addEventListener('click', (e) => {
@@ -110,6 +119,8 @@
 
     renderAll() {
       this.renderHeader();
+      this.renderStory();
+      this.renderTabLocks();
       this.renderGoals();
       this.renderStable();
       this.renderBreed();
@@ -118,13 +129,75 @@
       this.renderCodex();
     },
 
-    // Run after any action that changes progress: award goals + toast.
+    // Grey out tab-bar entries whose feature hasn't been unlocked yet.
+    renderTabLocks() {
+      $$('.tab').forEach((t) => {
+        const f = TAB_FEATURE[t.dataset.tab];
+        t.classList.toggle('locked', !!(f && !EVO.unlocked(f)));
+      });
+      $('#goals-block').style.display = EVO.unlocked('goals') ? '' : 'none';
+      $('#tournament-block').style.display = EVO.unlocked('tournament') ? '' : 'none';
+      $('#shop-block').style.display = EVO.unlocked('shop') ? '' : 'none';
+    },
+
+    // ---- Story panel -------------------------------------------------------
+    renderStory() {
+      const box = $('#story');
+      if (!box) return;
+      const ch = EVO.CHAPTERS[Game.state.chapter - 1];
+      if (!ch) { box.innerHTML = ''; return; }
+      if (!ch.objectives.length) {
+        box.innerHTML = `<div class="story-panel done">
+          <div class="story-top"><span class="story-ch">${ch.emoji} Story complete</span></div>
+          <div class="story-hint">${ch.hint}</div>
+        </div>`;
+        return;
+      }
+      const objs = ch.objectives.map((o) => {
+        const done = o.test(Game.state);
+        const [cur, max] = o.prog ? o.prog(Game.state) : [done ? 1 : 0, 1];
+        return `<div class="story-obj ${done ? 'done' : ''}">
+          <span class="story-check">${done ? '✓' : '◻︎'}</span>
+          <span class="story-desc">${o.desc}</span>
+          <span class="story-prog">${cur}/${max}</span>
+        </div>`;
+      }).join('');
+      box.innerHTML = `<div class="story-panel">
+        <div class="story-top">
+          <span class="story-ch">${ch.emoji} Chapter ${ch.num}/6 — ${ch.title}</span>
+          <button class="story-more" id="story-more">📖</button>
+        </div>
+        <div class="story-mentor">${EVO.MENTOR.emoji} <i>“${ch.hint}”</i></div>
+        ${objs}
+      </div>`;
+      const more = $('#story-more');
+      if (more) more.addEventListener('click', () => this.showChapterBriefing());
+    },
+
+    // Run after any action that changes progress: advance the story, then
+    // award goals/achievements (once those systems have been unlocked).
     afterAction() {
-      const newly = Game.checkGoals();
+      const completed = Game.checkChapter();
+      if (EVO.unlocked('goals')) {
+        const newly = Game.checkGoals();
+        if (newly.length) {
+          newly.forEach((g, i) => setTimeout(() => this.toast(`🎯 ${g.name}! +${g.reward} coins`), i * 900));
+          this.renderGoals();
+        }
+      }
       this.renderHeader();
-      if (newly.length) {
-        newly.forEach((g, i) => setTimeout(() => this.toast(`🎯 ${g.name}! +${g.reward} coins`), i * 900));
+      this.renderStory();
+      if (completed) {
+        // Unlock tabs/sections for the new chapter — but preserve the race
+        // track & results (a race often IS what completed the chapter).
+        this.renderTabLocks();
         this.renderGoals();
+        this.renderStable();
+        this.renderBreed();
+        this.renderRace(true);
+        this.renderWilds();
+        this.renderCodex();
+        this.showChapterModal(completed);
       }
     },
 
@@ -243,6 +316,10 @@
       const dad = this.breedSel.dad ? Game.getCreature(this.breedSel.dad) : null;
       const valid = mom && dad && mom.sex !== dad.sex && mom.id !== dad.id;
       if (!valid) { box.innerHTML = ''; return; }
+      if (!EVO.unlocked('predictor')) {
+        box.innerHTML = `<div class="predictor-card teaser">🔮 The Offspring Predictor unlocks in Chapter ${EVO.FEATURE_CHAPTER.predictor} — for now, breed on instinct.</div>`;
+        return;
+      }
       const p = EVO.predictBreed(mom, dad, 160);
       const labels = { speed: 'SPD', stamina: 'STA', accel: 'ACC', agility: 'AGI' };
       const bars = EVO.STAT_GENES.map((k) => {
@@ -369,17 +446,26 @@
     },
 
     // ---- Race ------------------------------------------------------------
-    renderRace() {
-      // Biome picker
+    renderRace(preserveResults) {
+      // If the story locked our current selection (e.g. after a reset), fall back.
+      if (!EVO.unlocked('biome_' + this.raceBiome)) this.raceBiome = 'dune';
+      // Biome picker (locked biomes tease their unlock chapter)
       const bp = this.el.biomePicker;
       bp.innerHTML = '';
       EVO.BIOME_KEYS.forEach((k) => {
         const b = EVO.BIOMES[k];
+        const open = EVO.unlocked('biome_' + k);
         const card = document.createElement('button');
-        card.className = 'biome-card' + (this.raceBiome === k ? ' selected' : '');
+        card.className = 'biome-card' + (this.raceBiome === k ? ' selected' : '') + (open ? '' : ' locked');
         card.style.setProperty('--biome', b.color);
-        card.innerHTML = `<div class="bemoji">${b.emoji}</div><div class="bname">${b.name}</div><div class="bblurb">${b.blurb}</div>`;
-        card.addEventListener('click', () => { this.raceBiome = k; this.renderRace(); });
+        if (open) {
+          card.innerHTML = `<div class="bemoji">${b.emoji}</div><div class="bname">${b.name}</div><div class="bblurb">${b.blurb}</div>`;
+          card.addEventListener('click', () => { this.raceBiome = k; this.renderRace(); });
+        } else {
+          const req = EVO.FEATURE_CHAPTER['biome_' + k];
+          card.innerHTML = `<div class="bemoji">🔒</div><div class="bname">???</div><div class="bblurb">Unlocks in Chapter ${req}</div>`;
+          card.addEventListener('click', () => this.toast(`🔒 A new land opens in Chapter ${req}.`));
+        }
         bp.appendChild(card);
       });
       // Theme the track panel to the selected biome.
@@ -404,10 +490,12 @@
       this.el.raceBtn.disabled = !this.raceRacerId || Game.state.coins < entry;
       this.el.raceBtn.textContent = Game.state.coins < entry
         ? 'Need coins to enter' : `Enter Race (−${entry} coins)`;
-      this.el.raceResults.innerHTML = '';
-      this.el.track.innerHTML = '';
-      this.el.commentary.textContent = '';
-      this.el.commentary.classList.remove('banner');
+      if (!preserveResults) {
+        this.el.raceResults.innerHTML = '';
+        this.el.track.innerHTML = '';
+        this.el.commentary.textContent = '';
+        this.el.commentary.classList.remove('banner');
+      }
       this.el.tourneyBtn.textContent = `🏆 Enter the Season ${Game.seasonNumber()} Cup (−${EVO.devCost(EVO.TOURNAMENT.entry)} coins)`;
       this.el.tourneyBtn.disabled = Game.state.coins < EVO.devCost(EVO.TOURNAMENT.entry);
       if (!this._tourney) this.el.tourney.innerHTML = '';
@@ -696,9 +784,9 @@
       if (!this.exploreId || !Game.state.stable.find((c) => c.id === this.exploreId)) {
         this.exploreId = Game.state.stable[0] ? Game.state.stable[0].id : null;
       }
-      if (!this.exploreBiome) this.exploreBiome = 'dune';
+      if (!this.exploreBiome || !EVO.unlocked('biome_' + this.exploreBiome)) this.exploreBiome = 'dune';
 
-      const biomeBtns = EVO.BIOME_KEYS.map((k) => {
+      const biomeBtns = EVO.BIOME_KEYS.filter((k) => EVO.unlocked('biome_' + k)).map((k) => {
         const b = EVO.BIOMES[k];
         return `<button class="xbiome ${this.exploreBiome === k ? 'sel' : ''}" data-biome="${k}" style="--biome:${b.color}">
           <span class="xb-emoji">${b.emoji}</span><span class="xb-name">${b.name.split(' ')[0]}</span></button>`;
@@ -1013,6 +1101,56 @@
         this.toast(r.ok ? `🍵 ${c.name} is charged for the next race!` : r.msg);
         if (r.ok) { this.renderStable(); this.openDetail(Game.getCreature(c.id)); }
       });
+    },
+
+    // ---- Story modals --------------------------------------------------------
+    // Mentor briefing for the CURRENT chapter: story intro + live objectives.
+    // Doubles as the help screen (the ? button), with the manual a tap away.
+    showChapterBriefing() {
+      const ch = EVO.CHAPTERS[Math.min(Game.state.chapter, EVO.CHAPTERS.length) - 1];
+      const paras = ch.intro.map((p) => `<p class="mentor-line">${p}</p>`).join('');
+      const objs = ch.objectives.length ? `
+        <div class="section-title">Chapter objectives</div>
+        ${ch.objectives.map((o) => {
+          const done = o.test(Game.state);
+          const [cur, max] = o.prog ? o.prog(Game.state) : [done ? 1 : 0, 1];
+          return `<div class="story-obj ${done ? 'done' : ''}"><span class="story-check">${done ? '✓' : '◻︎'}</span><span class="story-desc">${o.desc}</span><span class="story-prog">${cur}/${max}</span></div>`;
+        }).join('')}` : '';
+      this.openModalHTML(`
+        <div class="mentor-head">
+          <span class="mentor-avatar">${EVO.MENTOR.emoji}</span>
+          <div><div class="mentor-name">${EVO.MENTOR.name}</div>
+          <div class="mentor-sub">${ch.emoji} ${ch.num <= 6 ? 'Chapter ' + ch.num + '/6 — ' : ''}${ch.title}</div></div>
+        </div>
+        ${paras}
+        ${objs}
+        <div class="btnrow" style="margin-top:12px">
+          <button class="btn ghost sm" id="manual-btn">📖 Manual</button>
+          <button class="btn primary block" onclick="EVO.UI.closeModal()">Let's go</button>
+        </div>
+      `);
+      $('#manual-btn').addEventListener('click', () => this.showTutorial());
+    },
+
+    // Celebration when a chapter's objectives are completed: what was earned,
+    // what just unlocked, and the mentor's intro to the next chapter.
+    showChapterModal(completed) {
+      const next = EVO.CHAPTERS[completed.num]; // num is 1-based → next chapter
+      const unlockList = completed.unlocks.map((s) => `<div class="unlock-row">✨ ${s}</div>`).join('');
+      const nextIntro = next ? next.intro.map((p) => `<p class="mentor-line">${p}</p>`).join('') : '';
+      this.openModalHTML(`
+        <h2 style="text-align:center">${completed.emoji} Chapter ${completed.num} complete!</h2>
+        <p style="text-align:center;color:var(--accent2);font-weight:700">${completed.title}</p>
+        ${unlockList ? `<div class="section-title">Unlocked</div>${unlockList}` : ''}
+        ${next ? `
+          <div class="mentor-head" style="margin-top:14px">
+            <span class="mentor-avatar">${EVO.MENTOR.emoji}</span>
+            <div><div class="mentor-name">${EVO.MENTOR.name}</div>
+            <div class="mentor-sub">${next.emoji} ${next.num <= 6 ? 'Chapter ' + next.num + '/6 — ' : ''}${next.title}</div></div>
+          </div>
+          ${nextIntro}` : ''}
+        <button class="btn primary block" style="margin-top:12px" onclick="EVO.UI.closeModal()">${next && next.num <= 6 ? 'Onward!' : 'The world is yours 🌅'}</button>
+      `);
     },
 
     // ---- Dev Tweaks ---------------------------------------------------------
