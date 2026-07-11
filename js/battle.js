@@ -34,10 +34,10 @@
     const traits = c.traits || [];
     const tier = (EVO.SPECIES[c.species] || {}).tier || 0;
     return {
-      maxHp: Math.round((95 + s.stamina * 2.3) * adaptMul * (c.tonic ? 1.12 : 1)),
+      maxHp: Math.round((85 + s.stamina * 2.0) * adaptMul * (c.tonic ? 1.12 : 1)),
       dmg: (4.5 + s.speed * 0.11) * adaptMul,
       atkCd: Math.max(28, Math.round((56 - s.accel * 0.26) * (traits.includes('swiftborn') ? 0.8 : 1))),
-      move: 0.42 + s.speed * 0.009,
+      move: 0.23 + s.speed * 0.005,
       dodge: Math.min(0.28, s.agility / 400),
       crit: Math.min(0.2, s.agility / 500),
       armor: traits.includes('ironhide') ? 0.82 : 1,       // incoming dmg mult
@@ -91,7 +91,7 @@
     // Projectile abilities land after a flight time — dodging happens with feet.
     const fireShot = (i, targetIdx, tick, key, ab) => {
       const st = state[i];
-      const flight = Math.max(14, Math.round(dist(st, state[targetIdx]) * 0.9));
+      const flight = Math.max(20, Math.round(dist(st, state[targetIdx]) * 1.15));
       events.push({ tick, type: 'projectile', actor: i, target: targetIdx, ability: key, emoji: ab.emoji, arrive: tick + flight, from: { x: st.x, y: st.y } });
       pendingShots.push({ arrive: tick + flight, actor: i, target: targetIdx, key });
     };
@@ -102,9 +102,11 @@
       if (!target.alive) return;
       if (shot.key === 'bog') {          // mire glob: slow + dmg
         target.slow = Math.max(target.slow, 90);
+        events.push({ tick, type: 'status', target: shot.target, status: 'slow', dur: 90 });
         damage(shot.target, tick, p.dmg * 1.1 * p.power, shot.actor, 'ability-hit');
       } else if (shot.key === 'ash') {   // fireball: dmg + burn
         target.burn = { left: 84, timer: 12, dmg: Math.round(2 + p.power * 2.5) };
+        events.push({ tick, type: 'status', target: shot.target, status: 'burn', dur: 84 });
         damage(shot.target, tick, p.dmg * 1.0 * p.power, shot.actor, 'ability-hit');
       } else if (shot.key === 'reef') {  // wave: shove + dmg
         const st = state[shot.actor];
@@ -133,7 +135,7 @@
       if (key === 'tundra' && !foes.some((f) => dist(st, f) < 34)) return false;
 
       st.abNext++;
-      events.push({ tick, type: 'ability', actor: i, target: target.idx, ability: key, text: `${ab.emoji} ${ab.name}` });
+      events.push({ tick, type: 'ability', actor: i, target: target.idx, ability: key, text: `${ab.emoji} ${ab.name}`, from: { x: st.x, y: st.y } });
 
       if (key === 'dune') {              // blink behind target + heavy strike
         st.x = R.clamp(target.x + R.float(-6, 6), 6, ARENA - 6);
@@ -143,12 +145,14 @@
         st.x = R.clamp(target.x + R.float(-7, 7), 6, ARENA - 6);
         st.y = R.clamp(target.y + R.float(-7, 7), 6, ARENA - 6);
         target.stun = Math.max(target.stun, 55);
+        events.push({ tick, type: 'status', target: target.idx, status: 'stun', dur: 55 });
         damage(target.idx, tick, p.dmg * 2.3 * p.power, i, 'ability-hit');
       } else if (key === 'tundra') {     // frost nova around self
         events.push({ tick, type: 'nova', actor: i });
         foes.forEach((f) => {
           if (dist(st, f) < 34) {
             f.slow = Math.max(f.slow, 70);
+            events.push({ tick, type: 'status', target: f.idx, status: 'slow', dur: 70 });
             damage(f.idx, tick, p.dmg * 1.1 * p.power, i, 'ability-hit');
           }
         });
@@ -207,7 +211,7 @@
         // Fire an ability the moment it's up and in range — mid-strafe,
         // mid-retreat, wherever. This is the "walk around and shoot" feel.
         if (st.abTimer <= 0 && castAbility(st.idx, tick)) {
-          st.abTimer = 220 + R.int(0, 60);
+          st.abTimer = 190 + R.int(0, 50);
           // After casting, ranged lineages keep their distance.
           if (['bog', 'ash', 'reef', 'tundra'].includes(p.abilities[0])) {
             st.mode = 'strafe'; st.modeT = R.int(70, 130);
@@ -229,7 +233,7 @@
           }
           // Break off after striking: back out, then circle back in.
           st.mode = 'retreat';
-          st.modeT = lowHp ? R.int(60, 110) : R.int(30, 60);
+          st.modeT = lowHp ? R.int(50, 90) : R.int(25, 50);
           continue;
         }
 
@@ -241,10 +245,10 @@
         if (st.mode === 'retreat') {
           st.x -= ux * mvBase * 1.05;
           st.y -= uy * mvBase * 1.05;
-          if (--st.modeT <= 0 || d > 40) {
+          if (--st.modeT <= 0 || d > 32) {
             st.mode = 'strafe';
-            st.modeT = R.int(50, 120);
-            st.orbitR = R.float(18, 28);
+            st.modeT = R.int(40, 100);
+            st.orbitR = R.float(16, 24);
             if (R.chance(0.4)) st.orbitDir *= -1;
           }
         } else if (st.mode === 'strafe') {

@@ -848,16 +848,23 @@
       const lines = EVO.battleCommentary(field, result, playerId);
       let nextLine = 0;
 
-      // Build one sprite (art + hp bar + name) per combatant.
+      // Build one sprite (art + hp bar + status badge + name) per combatant.
       const sprites = field.map((c, i) => {
         const el = document.createElement('div');
         el.className = 'battler' + (c.id === playerId ? ' player' : '');
         el.innerHTML = `
+          <div class="b-status"></div>
           <div class="b-hpbar"><span style="width:100%"></span></div>
           <div class="b-art">${EVO.creatureSVG(c, 48)}</div>
           <div class="b-name">${c.id === playerId ? '▶ ' : ''}${c.name}</div>`;
         arena.appendChild(el);
-        return { el, hp: el.querySelector('.b-hpbar span'), maxHp: result.maxHps[i], ko: false };
+        return {
+          el, hp: el.querySelector('.b-hpbar span'),
+          statusEl: el.querySelector('.b-status'),
+          art: el.querySelector('.b-art'),
+          maxHp: result.maxHps[i], ko: false,
+          status: null, // {emoji, expireFi}
+        };
       });
 
       const floatText = (x, y, text, cls) => {
@@ -867,78 +874,126 @@
         f.style.left = x + '%';
         f.style.top = y + '%';
         arena.appendChild(f);
-        setTimeout(() => f.remove(), 900);
+        setTimeout(() => f.remove(), 1100);
       };
+      const spawnFx = (x, y, cls, life) => {
+        const d = document.createElement('div');
+        d.className = cls;
+        d.style.left = x + '%';
+        d.style.top = y + '%';
+        arena.appendChild(d);
+        setTimeout(() => d.remove(), life || 800);
+        return d;
+      };
+      const STATUS_EMOJI = { slow: '🥀', burn: '🔥', stun: '💫' };
 
       const frames = result.frames;
       const total = frames.length;
       const events = result.events;
       let nextEvent = 0;
       let f = 0;
-      const speedup = EVO.DEV.fastRaces ? 5 : 2;
+      // Slower, readable playback; sub-frame interpolation keeps it silky.
+      const speedup = EVO.DEV.fastRaces ? 4 : 1.5;
       const shots = []; // projectiles in flight: {el, targetIdx, arriveFi, x, y}
 
       const step = () => {
         const fi = Math.min(Math.floor(f), total - 1);
-        const row = frames[fi];
+        const frac = Math.min(f, total - 1) - fi;
+        const rowA = frames[fi];
+        const rowB = frames[Math.min(fi + 1, total - 1)];
+        const px = (i) => rowA[i].x + (rowB[i].x - rowA[i].x) * frac;
+        const py = (i) => rowA[i].y + (rowB[i].y - rowA[i].y) * frac;
+
         for (let i = 0; i < sprites.length; i++) {
-          const s = row[i], sp = sprites[i];
-          sp.el.style.left = s.x + '%';
-          sp.el.style.top = s.y + '%';
+          const s = rowA[i], sp = sprites[i];
+          sp.el.style.left = px(i) + '%';
+          sp.el.style.top = py(i) + '%';
           sp.hp.style.width = Math.max(0, (s.hp / sp.maxHp) * 100) + '%';
           sp.hp.parentElement.classList.toggle('low', s.hp / sp.maxHp < 0.3);
-          if (!s.alive && !sp.ko) { sp.ko = true; sp.el.classList.add('ko'); }
+          if (!s.alive && !sp.ko) {
+            sp.ko = true;
+            sp.el.classList.add('ko');
+            sp.status = null; sp.statusEl.textContent = '';
+          }
+          if (sp.status && fi >= sp.status.expireFi) {
+            sp.status = null; sp.statusEl.textContent = '';
+          }
         }
+
         // Home in-flight projectiles onto their (moving) targets.
         for (let s = shots.length - 1; s >= 0; s--) {
           const sh = shots[s];
-          const t = row[sh.targetIdx];
-          const remain = Math.max(1, (sh.arriveFi - fi) / speedup); // rAF steps left
-          sh.x += (t.x - sh.x) / remain;
-          sh.y += (t.y - sh.y) / remain;
+          const tx = px(sh.targetIdx), ty = py(sh.targetIdx);
+          const remain = Math.max(1, (sh.arriveFi - f) / speedup); // rAF steps left
+          sh.x += (tx - sh.x) / remain;
+          sh.y += (ty - sh.y) / remain;
           sh.el.style.left = sh.x + '%';
           sh.el.style.top = sh.y + '%';
           if (fi >= sh.arriveFi) {
-            floatText(t.x, t.y, '✸', 'impact');
+            spawnFx(tx, ty, 'impact-burst ab-' + sh.key, 700);
             sh.el.remove();
             shots.splice(s, 1);
           }
         }
+
         while (nextEvent < events.length && events[nextEvent].tick <= fi) {
           const e = events[nextEvent++];
-          const pos = row[e.target] || row[e.actor] || { x: 50, y: 50 };
+          const pos = rowA[e.target] || rowA[e.actor] || { x: 50, y: 50 };
           if (e.type === 'hit' || e.type === 'crit' || e.type === 'ability-hit' || e.type === 'burn') {
             floatText(pos.x, pos.y - 8, '−' + e.amount, e.type === 'crit' ? 'crit' : (e.type === 'burn' ? 'burn' : ''));
             if (e.type === 'crit') floatText(pos.x, pos.y - 16, 'CRIT!', 'crit');
           } else if (e.type === 'heal') {
             floatText(pos.x, pos.y - 8, '+' + e.amount, 'heal');
+            spawnFx(pos.x, pos.y, 'impact-burst ab-heal', 700);
           } else if (e.type === 'dodge') {
             floatText(pos.x, pos.y - 8, 'miss', 'miss');
+          } else if (e.type === 'status') {
+            const sp = sprites[e.target];
+            if (sp && !sp.ko) {
+              sp.status = { expireFi: e.tick + e.dur };
+              sp.statusEl.textContent = STATUS_EMOJI[e.status] || '';
+            }
           } else if (e.type === 'lunge') {
-            // Quick pounce pulse on the attacker.
             const ael = sprites[e.actor].el;
             ael.classList.remove('lunging');
             void ael.offsetWidth;
             ael.classList.add('lunging');
           } else if (e.type === 'projectile') {
             const el = document.createElement('div');
-            el.className = 'projectile';
+            el.className = 'projectile ab-' + e.ability;
             el.textContent = e.emoji;
             el.style.left = e.from.x + '%';
             el.style.top = e.from.y + '%';
             arena.appendChild(el);
-            shots.push({ el, targetIdx: e.target, arriveFi: e.arrive, x: e.from.x, y: e.from.y });
+            shots.push({ el, targetIdx: e.target, arriveFi: e.arrive, x: e.from.x, y: e.from.y, key: e.ability });
           } else if (e.type === 'nova') {
-            const apos = row[e.actor] || { x: 50, y: 50 };
-            const ring = document.createElement('div');
-            ring.className = 'nova-ring';
-            ring.style.left = apos.x + '%';
-            ring.style.top = apos.y + '%';
-            arena.appendChild(ring);
-            setTimeout(() => ring.remove(), 800);
+            const apos = rowA[e.actor] || { x: 50, y: 50 };
+            spawnFx(apos.x, apos.y, 'nova-ring', 900);
+            for (let k = 0; k < 4; k++) {
+              floatText(apos.x + (Math.random() * 24 - 12), apos.y + (Math.random() * 24 - 12), '❄', 'frost');
+            }
           } else if (e.type === 'ability') {
-            const apos = row[e.actor] || { x: 50, y: 50 };
-            floatText(apos.x, apos.y - 14, e.text, 'ability');
+            // Cast telegraph: glow the caster + announce the move.
+            const sp = sprites[e.actor];
+            if (sp) {
+              sp.el.classList.remove('casting');
+              void sp.el.offsetWidth;
+              sp.el.classList.add('casting');
+            }
+            const apos = rowA[e.actor] || { x: 50, y: 50 };
+            floatText(apos.x, apos.y - 16, e.text, 'ability');
+            if (e.ability === 'dune' || e.ability === 'crag') {
+              // Afterimage ghost at the launch point…
+              const ghost = spawnFx(e.from.x, e.from.y, 'b-ghost', 650);
+              ghost.innerHTML = sp ? sp.art.innerHTML : '';
+              if (e.ability === 'crag') {
+                // …and a shockwave where the slam lands.
+                spawnFx(apos.x, apos.y, 'shock-ring', 700);
+                arena.classList.remove('shake');
+                void arena.offsetWidth;
+                arena.classList.add('shake');
+              }
+            }
           }
         }
         while (nextLine < lines.length && lines[nextLine].frame <= fi) {
