@@ -15,8 +15,8 @@
   const ARENA = 100;         // logical arena is 100×100 units
   const ATTACK_RANGE = 11;   // melee reach
   const CAST_RANGE = 70;     // max range for projectile abilities
-  const MAX_TICKS = 2600;
-  const SUDDEN_DEATH = 1900; // damage ramps after this so bouts always end
+  const MAX_TICKS = 2800;
+  const SUDDEN_DEATH = 2000; // damage ramps after this so bouts always end
 
   // Which abilities a creature's evolution grants it in the arena.
   EVO.abilitiesFor = function (c) {
@@ -34,10 +34,10 @@
     const traits = c.traits || [];
     const tier = (EVO.SPECIES[c.species] || {}).tier || 0;
     return {
-      maxHp: Math.round((85 + s.stamina * 2.0) * adaptMul * (c.tonic ? 1.12 : 1)),
-      dmg: (4.5 + s.speed * 0.11) * adaptMul,
-      atkCd: Math.max(28, Math.round((56 - s.accel * 0.26) * (traits.includes('swiftborn') ? 0.8 : 1))),
-      move: 0.23 + s.speed * 0.005,
+      maxHp: Math.round((80 + s.stamina * 1.9) * adaptMul * (c.tonic ? 1.12 : 1)),
+      dmg: (6 + s.speed * 0.16) * adaptMul,
+      atkCd: Math.max(68, Math.round((118 - s.accel * 0.5) * (traits.includes('swiftborn') ? 0.8 : 1))),
+      move: 0.15 + s.speed * 0.003,
       dodge: Math.min(0.28, s.agility / 400),
       crit: Math.min(0.2, s.agility / 500),
       armor: traits.includes('ironhide') ? 0.82 : 1,       // incoming dmg mult
@@ -57,8 +57,8 @@
       x: corners[i][0], y: corners[i][1],
       hp: profiles[i].maxHp,
       alive: true, koTick: null,
-      atkTimer: R.int(10, 40),
-      abTimer: R.int(90, 170),
+      atkTimer: R.int(30, 90),
+      abTimer: R.int(200, 340),
       abNext: 0,                       // hybrids alternate abilities
       slow: 0, stun: 0,
       burn: null,                      // {left, timer, dmg}
@@ -78,7 +78,7 @@
     const damage = (t, tick, amount, srcIdx, kind) => {
       const st = state[t];
       if (!st.alive) return;
-      const ramp = tick > SUDDEN_DEATH ? 1 + (tick - SUDDEN_DEATH) / 250 : 1;
+      const ramp = tick > SUDDEN_DEATH ? 1 + (tick - SUDDEN_DEATH) / 140 : 1;
       const dealt = Math.max(1, Math.round(amount * profiles[t].armor * ramp));
       st.hp -= dealt;
       events.push({ tick, type: kind || 'hit', actor: srcIdx, target: t, amount: dealt });
@@ -91,7 +91,7 @@
     // Projectile abilities land after a flight time — dodging happens with feet.
     const fireShot = (i, targetIdx, tick, key, ab) => {
       const st = state[i];
-      const flight = Math.max(20, Math.round(dist(st, state[targetIdx]) * 1.15));
+      const flight = Math.max(34, Math.round(dist(st, state[targetIdx]) * 1.7));
       events.push({ tick, type: 'projectile', actor: i, target: targetIdx, ability: key, emoji: ab.emoji, arrive: tick + flight, from: { x: st.x, y: st.y } });
       pendingShots.push({ arrive: tick + flight, actor: i, target: targetIdx, key });
     };
@@ -101,12 +101,12 @@
       const target = state[shot.target];
       if (!target.alive) return;
       if (shot.key === 'bog') {          // mire glob: slow + dmg
-        target.slow = Math.max(target.slow, 90);
-        events.push({ tick, type: 'status', target: shot.target, status: 'slow', dur: 90 });
+        target.slow = Math.max(target.slow, 140);
+        events.push({ tick, type: 'status', target: shot.target, status: 'slow', dur: 140 });
         damage(shot.target, tick, p.dmg * 1.1 * p.power, shot.actor, 'ability-hit');
       } else if (shot.key === 'ash') {   // fireball: dmg + burn
-        target.burn = { left: 84, timer: 12, dmg: Math.round(2 + p.power * 2.5) };
-        events.push({ tick, type: 'status', target: shot.target, status: 'burn', dur: 84 });
+        target.burn = { left: 130, timer: 16, dmg: Math.round(2 + p.power * 2.5) };
+        events.push({ tick, type: 'status', target: shot.target, status: 'burn', dur: 130 });
         damage(shot.target, tick, p.dmg * 1.0 * p.power, shot.actor, 'ability-hit');
       } else if (shot.key === 'reef') {  // wave: shove + dmg
         const st = state[shot.actor];
@@ -144,15 +144,15 @@
       } else if (key === 'crag') {       // leap slam: gap-close + stun
         st.x = R.clamp(target.x + R.float(-7, 7), 6, ARENA - 6);
         st.y = R.clamp(target.y + R.float(-7, 7), 6, ARENA - 6);
-        target.stun = Math.max(target.stun, 55);
-        events.push({ tick, type: 'status', target: target.idx, status: 'stun', dur: 55 });
+        target.stun = Math.max(target.stun, 90);
+        events.push({ tick, type: 'status', target: target.idx, status: 'stun', dur: 90 });
         damage(target.idx, tick, p.dmg * 2.3 * p.power, i, 'ability-hit');
       } else if (key === 'tundra') {     // frost nova around self
         events.push({ tick, type: 'nova', actor: i });
         foes.forEach((f) => {
           if (dist(st, f) < 34) {
-            f.slow = Math.max(f.slow, 70);
-            events.push({ tick, type: 'status', target: f.idx, status: 'slow', dur: 70 });
+            f.slow = Math.max(f.slow, 110);
+            events.push({ tick, type: 'status', target: f.idx, status: 'slow', dur: 110 });
             damage(f.idx, tick, p.dmg * 1.1 * p.power, i, 'ability-hit');
           }
         });
@@ -190,7 +190,7 @@
         if (st.slow > 0) st.slow--;
         if (st.burn) {
           if (--st.burn.timer <= 0) {
-            st.burn.timer = 12;
+            st.burn.timer = 16;
             damage(st.idx, tick, st.burn.dmg / (p.armor || 1), -1, 'burn'); // burn ignores armor
           }
           if (--st.burn.left <= 0) st.burn = null;
@@ -211,10 +211,10 @@
         // Fire an ability the moment it's up and in range — mid-strafe,
         // mid-retreat, wherever. This is the "walk around and shoot" feel.
         if (st.abTimer <= 0 && castAbility(st.idx, tick)) {
-          st.abTimer = 190 + R.int(0, 50);
+          st.abTimer = 380 + R.int(0, 80);
           // After casting, ranged lineages keep their distance.
           if (['bog', 'ash', 'reef', 'tundra'].includes(p.abilities[0])) {
-            st.mode = 'strafe'; st.modeT = R.int(70, 130);
+            st.mode = 'strafe'; st.modeT = R.int(140, 220);
           }
         }
         if (!st.alive) continue;
@@ -233,7 +233,7 @@
           }
           // Break off after striking: back out, then circle back in.
           st.mode = 'retreat';
-          st.modeT = lowHp ? R.int(50, 90) : R.int(25, 50);
+          st.modeT = lowHp ? R.int(90, 150) : R.int(50, 90);
           continue;
         }
 
@@ -245,19 +245,19 @@
         if (st.mode === 'retreat') {
           st.x -= ux * mvBase * 1.05;
           st.y -= uy * mvBase * 1.05;
-          if (--st.modeT <= 0 || d > 32) {
+          if (--st.modeT <= 0 || d > 30) {
             st.mode = 'strafe';
-            st.modeT = R.int(40, 100);
-            st.orbitR = R.float(16, 24);
+            st.modeT = R.int(110, 190);
+            st.orbitR = R.float(17, 26);
             if (R.chance(0.4)) st.orbitDir *= -1;
           }
         } else if (st.mode === 'strafe') {
           // Orbit the target: tangential motion + drift toward the orbit ring.
           const tx = -uy * st.orbitDir, ty = ux * st.orbitDir;
-          const radial = (d - st.orbitR) * 0.035; // >0 → drift inward
-          st.x += (tx * 0.85 + ux * radial) * mvBase;
-          st.y += (ty * 0.85 + uy * radial) * mvBase;
-          if (R.chance(0.008)) st.orbitDir *= -1; // feints
+          const radial = (d - st.orbitR) * 0.03; // >0 → drift inward
+          st.x += (tx * 0.55 + ux * radial) * mvBase;
+          st.y += (ty * 0.55 + uy * radial) * mvBase;
+          if (R.chance(0.003)) st.orbitDir *= -1; // occasional feint
           // Commit to an attack run when the swing is ready (hurt fighters
           // hang back longer and rely on abilities).
           if (--st.modeT <= 0 || (st.atkTimer <= 0 && (!lowHp || R.chance(0.02)))) {

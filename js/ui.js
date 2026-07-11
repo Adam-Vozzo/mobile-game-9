@@ -887,13 +887,37 @@
       };
       const STATUS_EMOJI = { slow: '🥀', burn: '🔥', stun: '💫' };
 
+      // Big-ticket FX: full-arena tint flash, marquee cast banner, particles.
+      const arenaFlash = (key) => spawnFx(50, 50, 'arena-flash ab-' + key, 500);
+      const bigBanner = (text, key) => {
+        const b = document.createElement('div');
+        b.className = 'ab-banner ab-' + key;
+        b.textContent = text;
+        arena.appendChild(b);
+        setTimeout(() => b.remove(), 1400);
+      };
+      const spawnParticles = (x, y, glyph, n, cls) => {
+        for (let k = 0; k < n; k++) {
+          const d = document.createElement('div');
+          d.className = 'pfx ' + (cls || '');
+          d.textContent = glyph;
+          d.style.left = x + '%';
+          d.style.top = y + '%';
+          d.style.setProperty('--dx', (Math.random() * 90 - 45) + 'px');
+          d.style.setProperty('--dy', (Math.random() * -70 - 15) + 'px');
+          d.style.animationDelay = (Math.random() * 0.12) + 's';
+          arena.appendChild(d);
+          setTimeout(() => d.remove(), 1200);
+        }
+      };
+
       const frames = result.frames;
       const total = frames.length;
       const events = result.events;
       let nextEvent = 0;
       let f = 0;
-      // Slower, readable playback; sub-frame interpolation keeps it silky.
-      const speedup = EVO.DEV.fastRaces ? 4 : 1.5;
+      // Real-time playback (60 ticks/s); sub-frame interpolation keeps it silky.
+      const speedup = EVO.DEV.fastRaces ? 3 : 1;
       const shots = []; // projectiles in flight: {el, targetIdx, arriveFi, x, y}
 
       const step = () => {
@@ -914,6 +938,8 @@
             sp.ko = true;
             sp.el.classList.add('ko');
             sp.status = null; sp.statusEl.textContent = '';
+            floatText(px(i), py(i) - 10, 'KO!', 'kotext');
+            spawnParticles(px(i), py(i), '💥', 4);
           }
           if (sp.status && fi >= sp.status.expireFi) {
             sp.status = null; sp.statusEl.textContent = '';
@@ -929,8 +955,13 @@
           sh.y += (ty - sh.y) / remain;
           sh.el.style.left = sh.x + '%';
           sh.el.style.top = sh.y + '%';
+          if ((sh.trailT = (sh.trailT || 0) + 1) % 5 === 0) {
+            spawnFx(sh.x, sh.y, 'trail-dot ab-' + sh.key, 500);
+          }
           if (fi >= sh.arriveFi) {
-            spawnFx(tx, ty, 'impact-burst ab-' + sh.key, 700);
+            spawnFx(tx, ty, 'impact-burst ab-' + sh.key, 900);
+            const SPLASH = { ash: '🔥', bog: '💧', reef: '💦' };
+            spawnParticles(tx, ty, SPLASH[sh.key] || '✦', 5);
             sh.el.remove();
             shots.splice(s, 1);
           }
@@ -968,27 +999,33 @@
             shots.push({ el, targetIdx: e.target, arriveFi: e.arrive, x: e.from.x, y: e.from.y, key: e.ability });
           } else if (e.type === 'nova') {
             const apos = rowA[e.actor] || { x: 50, y: 50 };
-            spawnFx(apos.x, apos.y, 'nova-ring', 900);
-            for (let k = 0; k < 4; k++) {
-              floatText(apos.x + (Math.random() * 24 - 12), apos.y + (Math.random() * 24 - 12), '❄', 'frost');
-            }
+            spawnFx(apos.x, apos.y, 'nova-ring', 1100);
+            spawnParticles(apos.x, apos.y, '❄', 7, 'frost');
           } else if (e.type === 'ability') {
-            // Cast telegraph: glow the caster + announce the move.
+            // Cast spectacle: full-arena tint, marquee banner, caster ring.
             const sp = sprites[e.actor];
+            const apos = rowA[e.actor] || { x: 50, y: 50 };
+            arenaFlash(e.ability);
+            bigBanner(e.text, e.ability);
+            spawnFx(apos.x, apos.y, 'cast-ring ab-' + e.ability, 800);
             if (sp) {
               sp.el.classList.remove('casting');
               void sp.el.offsetWidth;
               sp.el.classList.add('casting');
             }
-            const apos = rowA[e.actor] || { x: 50, y: 50 };
-            floatText(apos.x, apos.y - 16, e.text, 'ability');
             if (e.ability === 'dune' || e.ability === 'crag') {
-              // Afterimage ghost at the launch point…
-              const ghost = spawnFx(e.from.x, e.from.y, 'b-ghost', 650);
-              ghost.innerHTML = sp ? sp.art.innerHTML : '';
+              // Afterimage trail from launch point to landing…
+              for (let g = 0; g < 3; g++) {
+                const gx = e.from.x + (apos.x - e.from.x) * (g / 3);
+                const gy = e.from.y + (apos.y - e.from.y) * (g / 3);
+                const ghost = spawnFx(gx, gy, 'b-ghost', 500 + g * 150);
+                ghost.style.opacity = 0.2 + g * 0.15;
+                ghost.innerHTML = sp ? sp.art.innerHTML : '';
+              }
               if (e.ability === 'crag') {
-                // …and a shockwave where the slam lands.
-                spawnFx(apos.x, apos.y, 'shock-ring', 700);
+                // …and a heavy shockwave + dust where the slam lands.
+                spawnFx(apos.x, apos.y, 'shock-ring', 900);
+                spawnParticles(apos.x, apos.y, '💨', 5);
                 arena.classList.remove('shake');
                 void arena.offsetWidth;
                 arena.classList.add('shake');
