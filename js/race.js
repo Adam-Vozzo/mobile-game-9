@@ -33,7 +33,8 @@
   EVO.simulateRace = function (racers, biome, opts) {
     opts = opts || {};
     const trackLen = 1000;
-    const ticks = 520;
+    const ticks = 800; // generous cap — the finish surge below means the
+                       // whole field crosses well before this backstop
     const profiles = racers.map((c) => EVO.racerProfile(c, biome));
 
     const state = racers.map((c, i) => ({
@@ -46,6 +47,7 @@
     }));
 
     const frames = [];
+    let firstFinish = null; // tick the winner crossed — starts the surge
     for (let t = 0; t < ticks; t++) {
       const posRow = [];
       for (let i = 0; i < state.length; i++) {
@@ -61,6 +63,14 @@
           const jitter = (1 - p.agility / 160) * R.gauss(0, 0.7);
           let step = Math.max(0, st.vel * 0.09 + jitter);
 
+          // Finish surge: once the winner is home, the rest of the field
+          // finds its kick so everyone visibly crosses the line instead of
+          // the race cutting away mid-track. The additive ramp guarantees
+          // even the slowest straggler gets home within a couple of seconds.
+          if (firstFinish != null) {
+            step = step * (1 + Math.min(0.6, (t - firstFinish) * 0.005)) + (t - firstFinish) * 0.02;
+          }
+
           // Energy drains; stamina slows the drain. Low energy caps speed.
           // Scaled for the longer race so stamina decides the final stretch.
           const drain = 0.28 - (p.stamina / 100) * 0.18;
@@ -70,6 +80,7 @@
           if (st.pos >= trackLen && st.finishedTick == null) {
             st.pos = trackLen;
             st.finishedTick = t;
+            if (firstFinish == null) firstFinish = t;
           }
         }
         posRow.push(Math.min(1, st.pos / trackLen));
