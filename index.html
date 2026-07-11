@@ -86,6 +86,20 @@
       </div>
     </section>
 
+    <!-- BATTLE -->
+    <section class="view" id="view-battle">
+      <div class="section-title">Choose an Arena</div>
+      <div class="biome-picker" id="battle-biome-picker"></div>
+      <div class="section-title">Choose your champion</div>
+      <div class="grid" id="battle-champ-grid"></div>
+      <button class="btn danger block" id="battle-btn" style="margin-top:12px">Enter Brawl</button>
+      <div class="arena-wrap" id="arena-wrap">
+        <div class="commentary" id="battle-commentary"></div>
+        <div class="arena" id="arena"></div>
+      </div>
+      <div id="battle-results"></div>
+    </section>
+
     <!-- WILDS (explore + market) -->
     <section class="view" id="view-wilds">
       <div class="section-title">Expeditions</div>
@@ -123,6 +137,7 @@
     <button class="tab active" data-tab="stable"><span class="ti">🏠</span>Stable</button>
     <button class="tab" data-tab="breed"><span class="ti">🧬</span>Breed</button>
     <button class="tab" data-tab="race"><span class="ti">🏁</span>Race</button>
+    <button class="tab" data-tab="battle"><span class="ti">⚔️</span>Battle</button>
     <button class="tab" data-tab="wilds"><span class="ti">🧭</span>Wilds</button>
     <button class="tab" data-tab="codex"><span class="ti">📖</span>Codex</button>
   </nav>
@@ -136,6 +151,7 @@
   <script src="js/creature.js"></script>
   <script src="js/render.js"></script>
   <script src="js/race.js"></script>
+  <script src="js/battle.js"></script>
   <script src="js/game.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/main.js"></script>

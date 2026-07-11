@@ -25,7 +25,7 @@
         market: [],
         stableCap: 8,
         log: [],
-        stats: { racesRun: 0, wins: 0, bred: 0, evolutions: 0, explored: 0, tournamentsPlayed: 0, tournamentsWon: 0, podiums: 0, homebredRaces: 0, biomesRaced: {} },
+        stats: { racesRun: 0, wins: 0, bred: 0, evolutions: 0, explored: 0, tournamentsPlayed: 0, tournamentsWon: 0, podiums: 0, homebredRaces: 0, biomesRaced: {}, battlesFought: 0, battleWins: 0 },
         discovered: { grubling: true },
         goalsDone: {},
         achievementsDone: {},
@@ -51,7 +51,7 @@
         // Back-compat guards.
         this.state.discovered = this.state.discovered || { grubling: true };
         this.state.stats = this.state.stats || { racesRun: 0, wins: 0, bred: 0, evolutions: 0, explored: 0 };
-        ['explored', 'tournamentsPlayed', 'tournamentsWon', 'podiums', 'homebredRaces'].forEach((k) => {
+        ['explored', 'tournamentsPlayed', 'tournamentsWon', 'podiums', 'homebredRaces', 'battlesFought', 'battleWins'].forEach((k) => {
           if (this.state.stats[k] == null) this.state.stats[k] = 0;
         });
         if (!this.state.stats.biomesRaced) this.state.stats.biomesRaced = {};
@@ -67,6 +67,7 @@
         // Migrate creatures to genes/biomes added after this save was created.
         const migrate = (c) => {
           if (!c.traits) c.traits = [];
+          if (c.battles == null) { c.battles = 0; c.battleWins = 0; }
           EVO.migrateGenome(c.genome);
           EVO.BIOME_KEYS.forEach((b) => { if (c.biomeExposure[b] == null) c.biomeExposure[b] = 0; });
           this.registerPedigree(c);
@@ -388,6 +389,30 @@
       this.logMsg(`🍵 ${c.name} drank a Stamina Tonic — boosted for the next race.`);
       this.save();
       return { ok: true };
+    },
+
+    // ---- Battles ------------------------------------------------------------
+    // Record an arena brawl. Mirrors recordRace: brawling in a biome builds
+    // exposure, so battles steer evolution just like racing does.
+    recordBattle(result, playerId, biome, entryFee) {
+      const pos = result.order.indexOf(playerId);
+      const player = this.getCreature(playerId);
+      if (player) {
+        player.battles = (player.battles || 0) + 1;
+        player.biomeExposure[biome] = (player.biomeExposure[biome] || 0) + 1;
+        if (pos === 0) player.battleWins = (player.battleWins || 0) + 1;
+        player.age++;
+        if (player.tonic) delete player.tonic;
+      }
+      const prize = EVO.battlePrize(pos, entryFee);
+      this.state.coins += prize;
+      this.state.stats.battlesFought++;
+      if (pos === 0) this.state.stats.battleWins++;
+      this.state.day++;
+      if (this.state.day % 2 === 0) this.refreshMarket();
+      this.logMsg(`${player ? player.name : 'Your champion'} placed #${pos + 1} in the ${EVO.BIOMES[biome].name} brawl. +${prize} coins.`);
+      this.save();
+      return { pos, prize };
     },
 
     // ---- Tournaments -------------------------------------------------------

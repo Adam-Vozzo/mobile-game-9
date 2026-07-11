@@ -50,7 +50,7 @@ New players don't face all nine systems at once. **Chapter 1** starts with just 
 | Chapter | Teaches | Unlocks on completion |
 | --- | --- | --- |
 | 1 · First Steps 🐣 | Racing basics | Breeding Lab |
-| 2 · The Bloodline 🧬 | Inheritance | 3 more biomes + offspring predictor |
+| 2 · The Bloodline 🧬 | Inheritance | 3 more biomes + predictor + ⚔️ Battle Arena |
 | 3 · Four Winds 🗺️ | Adaptation & exposure | The Wilds (expeditions + market) |
 | 4 · Into the Wild 🧭 | Exploration & fresh blood | Codex, goals, shop, 2 exotic biomes |
 | 5 · Metamorphosis ✨ | Directed evolution | Season Cup tournaments |
@@ -67,7 +67,7 @@ Locked tabs and biomes stay *visible* (greyed with a lock and their unlock chapt
         │                                           ▼
    pick parents  ◄──  build adaptation  ◄──  METAMORPHOSIS unlocks new species
 ```
-1. **Race** creatures on biome tracks for coins and to build exposure.
+1. **Race** creatures on biome tracks — or **Brawl** them in the arena — for coins and to build exposure.
 2. **Explore** biomes on expeditions to find coins, wild eggs, and rare mutation traits.
 3. **Breed** two parents — the predictor shows likely offspring stats and evolution odds.
 4. **Evolve** a lineage by concentrating its exposure until it metamorphoses.
@@ -83,12 +83,13 @@ Locked tabs and biomes stay *visible* (greyed with a lock and their unlock chapt
 | **Mutation traits** | Rare heritable perks (Swiftborn 💨, Ironhide 🛡️, Bioluminescent ✨, Twin-Tailed 🜛) found while exploring. Each gives a stat edge and bespoke art on the creature. |
 | **Racing** | 5-racer animated sim with **live commentary** and **photo-finish slow-mo replays**. Effective speed blends stats with biome adaptation, energy drain (stamina), acceleration ramp, and agility-driven variance. Rival strength rubber-bands to your entrant. Top-3 pay prizes. |
 | **Tournaments** | An 8-racer knockout Cup per season: survive your semifinal heat, race the final, take the champion's purse. |
+| **Battle Arena** | A real-time auto-battler: four creatures brawl until one stands. Stamina→HP, speed→damage, accel→attack speed, agility→dodge/crit; traits become armor, haste, dazzle, and double-strikes; each evolved lineage fires its **signature ability** (Mirage Dash, Frost Nova, Ember Burst…), hybrids wield *two*, and brawling in a biome builds exposure — battles drive evolution just like racing. |
 | **Expeditions** | Send a creature into a biome (Scout / Trek / Deep) for coins, wild eggs that lean into that biome, and rare traits — plus exposure to steer evolution without racing. |
 | **Items** | Gene Splicer 🧪 (boost a random stat gene), Exposure Serum 💉 (instant biome exposure), Stamina Tonic 🍵 (one-race energy boost). |
 | **Breeding predictor** | A Monte-Carlo preview (160 simulated offspring) showing min–max stat ranges and the **% chance of metamorphosis** before you commit. |
 | **Family tree** | Every creature's sheet shows a three-generation pedigree, kept even after ancestors are sold. |
 | **Economy** | Earn coins from races, tournaments, expeditions, goals, and achievements; spend on breeding, entries, items, wild-market creatures, and stable expansion. |
-| **Goals & achievements** | An 8-step guided goal ladder plus 13 long-tail achievements. |
+| **Goals & achievements** | A 9-step guided goal ladder plus 15 long-tail achievements. |
 | **Story mode** | The game opens up progressively: Elder Fen 🐢 guides you through 6 chapters, each teaching one system (race → breed → biomes → wilds → evolution → tournaments) and unlocking the next when its objectives are met. Veterans' saves skip straight to endless mode. |
 | **Codex** | Tracks discovered species (with lore), mutation traits, achievements, and career stats. The ? button opens the current chapter briefing, with the full manual one tap away. |
 
@@ -132,7 +133,13 @@ Single-hand, thumb-friendly, five-tab bottom nav: **Stable · Breed · Race · W
 - [x] Chapter briefing on the ? button (with the full manual one tap deeper) and a live objectives panel in the Stable
 - [x] 🗝️ Free-roam Dev Tweak to bypass story locks; pre-story saves auto-migrate to endless mode
 
-### 🔬 v0.5 — Proposed (next up)
+### ✅ v0.5 — Battle Arena
+- [x] **Battle mode** ⚔️: real-time 4-way arena brawls (auto-chess style — watch, root, and wince) with HP bars, floating damage, crits, dodges, and KO animations
+- [x] **Lineage abilities**: every evolved species manifests its biome's signature ability; hybrids carry both parents' abilities; Chimerax casts chaotically; grublings must evolve to gain one
+- [x] Traits manifest in combat (Ironhide armor, Swiftborn haste, Bioluminescent dazzle, Twin-Tailed double-strikes) and arena adaptation buffs HP & damage
+- [x] Fully woven in: brawls build biome exposure (evolution pressure), pay prizes, consume tonics, unlock in story Chapter 3, and feed new goals & achievements
+
+### 🔬 v0.6 — Proposed (next up)
 New feature proposals. Visual/UX experiments land first behind the in-game **🧪 Dev Tweaks** menu (see below) so they can be evaluated on-device before graduating to defaults — six are live there now (pixel art, synthwave theme, chaos mutations, gene inspector, fast races, free-entry sandbox).
 - [ ] **Pixel-art render style** — 16×16 sprite renderer driven by the same genome · *prototype shipped, testable in Dev Tweaks now*
 - [ ] **Synthwave UI theme** — neon palette · *prototype shipped, testable in Dev Tweaks now*
@@ -144,6 +151,7 @@ New feature proposals. Visual/UX experiments land first behind the in-game **�
 - [ ] **Photo mode** — export a creature's portrait card (art + stats + pedigree) as a shareable image
 - [ ] **Night races** — bioluminescent-trait-only events with unique prizes
 - [ ] **Rival stables** — named recurring AI opponents whose bloodlines also evolve between seasons
+- [ ] **Battle cups** — knockout brawl tournaments, and team battles (2v2 with your own creatures)
 
 ### 🚀 v1.0 — Live game
 - [ ] PWA manifest + service worker (installable, true offline)

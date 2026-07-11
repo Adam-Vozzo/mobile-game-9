@@ -21,6 +21,8 @@
       biomeExposure: opts.biomeExposure || EVO.BIOME_KEYS.reduce((o, b) => ((o[b] = 0), o), {}),
       races: 0,
       wins: 0,
+      battles: 0,
+      battleWins: 0,
       age: 0,          // increments each breeding cycle; affects fertility
       restedUntil: 0,  // race counter for stamina recovery flavour
       sex: opts.sex || R.pick(['M', 'F']),

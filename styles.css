@@ -381,6 +381,48 @@ main { padding: 12px 12px 90px; }
 :root.synthwave .btn.gold { box-shadow: 0 0 14px rgba(255,94,219,.35); }
 :root.synthwave .creature-svg { filter: drop-shadow(0 0 5px rgba(255,94,219,.25)); }
 
+/* Battle Arena */
+.arena-wrap { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; margin-top: 12px; transition: background .3s; }
+.arena { position: relative; width: 100%; aspect-ratio: 1 / 0.85; border-radius: 12px; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 55%, rgba(255,255,255,.06), rgba(0,0,0,.25)),
+              repeating-conic-gradient(rgba(255,255,255,.015) 0 15deg, transparent 15deg 30deg); }
+.arena::after { content: ''; position: absolute; inset: 8%; border: 2px dashed rgba(255,255,255,.08); border-radius: 50%; pointer-events: none; }
+.arena-wrap.biome-dune .arena { background-color: #3a2f1c; }
+.arena-wrap.biome-bog .arena { background-color: #1e2e1c; }
+.arena-wrap.biome-crag .arena { background-color: #2c2a28; }
+.arena-wrap.biome-tundra .arena { background-color: #223240; }
+.arena-wrap.biome-ash .arena { background-color: #3a201a; }
+.arena-wrap.biome-reef .arena { background-color: #16323e; }
+
+.battler { position: absolute; width: 64px; margin-left: -32px; margin-top: -36px; text-align: center;
+  transition: left .12s linear, top .12s linear; z-index: 2; }
+.battler.player .b-art { filter: drop-shadow(0 0 7px var(--accent2)); }
+.battler .b-art { width: 48px; height: 48px; margin: 0 auto; }
+.battler .b-name { font-size: 9px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.battler.player .b-name { color: var(--accent2); font-weight: 700; }
+.b-hpbar { width: 44px; height: 5px; margin: 0 auto 2px; background: rgba(0,0,0,.55); border-radius: 3px; overflow: hidden; }
+.b-hpbar span { display: block; height: 100%; background: var(--accent2); transition: width .15s; }
+.b-hpbar.low span { background: var(--danger); }
+.battler.ko { z-index: 1; }
+.battler.ko .b-art { filter: grayscale(1) brightness(.55); transform: rotate(100deg) translateY(6px); transition: transform .4s, filter .4s; }
+.battler.ko .b-hpbar { visibility: hidden; }
+
+.dmg-float { position: absolute; z-index: 5; font-size: 12px; font-weight: 800; color: #ff8fa3; pointer-events: none;
+  transform: translate(-50%, -50%); animation: dmgfloat .85s ease-out forwards; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+.dmg-float.crit { color: var(--accent); font-size: 14px; }
+.dmg-float.heal { color: var(--accent2); }
+.dmg-float.burn { color: #ff9e5e; }
+.dmg-float.miss { color: var(--muted); font-style: italic; font-weight: 600; }
+.dmg-float.ability { color: #fff; font-size: 11px; background: rgba(0,0,0,.55); padding: 2px 7px; border-radius: 999px; }
+@keyframes dmgfloat { from { opacity: 1; } to { opacity: 0; transform: translate(-50%, -190%); } }
+
+.ability-line { text-align: center; font-size: 13px; color: var(--accent2); margin: 2px 0 6px; }
+.ability-line.none { color: var(--muted); font-size: 12px; }
+
+/* Six tabs fit a little tighter */
+.tab { font-size: 10px; }
+.tab .ti { font-size: 18px; }
+
 /* Story mode */
 .story-panel { background: linear-gradient(135deg, rgba(6,214,160,.08), rgba(255,209,102,.05)), var(--panel);
   border: 1px solid var(--accent2); border-radius: 14px; padding: 12px 14px; margin-bottom: 16px; }

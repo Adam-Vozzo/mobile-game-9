@@ -8,7 +8,7 @@
   const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 
   // Story-mode gating: which feature a tab needs (see EVO.FEATURE_CHAPTER).
-  const TAB_FEATURE = { breed: 'breed', wilds: 'wilds', codex: 'codex' };
+  const TAB_FEATURE = { breed: 'breed', battle: 'battle', wilds: 'wilds', codex: 'codex' };
 
   const UI = (EVO.UI = {
     breedSel: { mom: null, dad: null }, // creature ids
@@ -31,6 +31,7 @@
           stable: $('#view-stable'),
           breed: $('#view-breed'),
           race: $('#view-race'),
+          battle: $('#view-battle'),
           wilds: $('#view-wilds'),
           codex: $('#view-codex'),
         },
@@ -57,6 +58,13 @@
         traitCodex: $('#trait-codex'),
         achievements: $('#achievements'),
         commentary: $('#commentary'),
+        battleBiomePicker: $('#battle-biome-picker'),
+        battleChampGrid: $('#battle-champ-grid'),
+        battleBtn: $('#battle-btn'),
+        arena: $('#arena'),
+        arenaWrap: $('#arena-wrap'),
+        battleCommentary: $('#battle-commentary'),
+        battleResults: $('#battle-results'),
         tourneyBtn: $('#tourney-btn'),
         tourney: $('#tourney'),
         shop: $('#shop'),
@@ -87,6 +95,7 @@
       if (name === 'stable') { this.renderStory(); this.renderGoals(); this.renderStable(); }
       if (name === 'breed') this.renderBreed();
       if (name === 'race') this.renderRace();
+      if (name === 'battle') this.renderBattle();
       if (name === 'wilds') this.renderWilds();
       if (name === 'codex') this.renderCodex();
     },
@@ -94,6 +103,7 @@
     bindStatic() {
       this.el.breedBtn.addEventListener('click', () => this.doBreed());
       this.el.raceBtn.addEventListener('click', () => this.doRace());
+      this.el.battleBtn.addEventListener('click', () => this.doBattle());
       this.el.expandBtn.addEventListener('click', () => {
         const r = Game.expandStable();
         this.toast(r.ok ? 'Stable expanded!' : r.msg);
@@ -125,6 +135,7 @@
       this.renderStable();
       this.renderBreed();
       this.renderRace();
+      this.renderBattle();
       this.renderWilds();
       this.renderCodex();
     },
@@ -195,6 +206,7 @@
         this.renderStable();
         this.renderBreed();
         this.renderRace(true);
+        this.renderBattle(true);
         this.renderWilds();
         this.renderCodex();
         this.showChapterModal(completed);
@@ -745,6 +757,183 @@
       this.el.raceBtn.disabled = Game.state.coins < EVO.devCost(EVO.RACE_ENTRY);
     },
 
+    // ---- Battle Arena ------------------------------------------------------
+    renderBattle(preserveResults) {
+      if (!this.battleBiome || !EVO.unlocked('biome_' + this.battleBiome)) this.battleBiome = 'dune';
+      const bp = this.el.battleBiomePicker;
+      bp.innerHTML = '';
+      EVO.BIOME_KEYS.forEach((k) => {
+        const b = EVO.BIOMES[k];
+        const open = EVO.unlocked('biome_' + k);
+        const card = document.createElement('button');
+        card.className = 'biome-card' + (this.battleBiome === k ? ' selected' : '') + (open ? '' : ' locked');
+        card.style.setProperty('--biome', b.color);
+        if (open) {
+          card.innerHTML = `<div class="bemoji">${b.emoji}</div><div class="bname">${b.name}</div><div class="bblurb">${b.blurb}</div>`;
+          card.addEventListener('click', () => { this.battleBiome = k; this.renderBattle(); });
+        } else {
+          const req = EVO.FEATURE_CHAPTER['biome_' + k];
+          card.innerHTML = `<div class="bemoji">🔒</div><div class="bname">???</div><div class="bblurb">Unlocks in Chapter ${req}</div>`;
+          card.addEventListener('click', () => this.toast(`🔒 A new land opens in Chapter ${req}.`));
+        }
+        bp.appendChild(card);
+      });
+
+      const grid = this.el.battleChampGrid;
+      grid.innerHTML = '';
+      if (!this.battleChampId || !Game.state.stable.find((c) => c.id === this.battleChampId)) {
+        this.battleChampId = Game.state.stable[0] ? Game.state.stable[0].id : null;
+      }
+      Game.state.stable.forEach((c) => {
+        grid.appendChild(this.creatureCard(c, {
+          selectable: true,
+          selected: this.battleChampId === c.id,
+          onClick: (cr) => { this.battleChampId = cr.id; this.renderBattle(); },
+        }));
+      });
+
+      const entry = EVO.devCost(EVO.RACE_ENTRY);
+      this.el.battleBtn.disabled = !this.battleChampId || Game.state.coins < entry;
+      this.el.battleBtn.textContent = Game.state.coins < entry
+        ? 'Need coins to enter' : `⚔️ Enter Brawl (−${entry} coins)`;
+      if (!preserveResults) {
+        this.el.battleResults.innerHTML = '';
+        this.el.arena.innerHTML = '';
+        this.el.battleCommentary.textContent = '';
+      }
+      this.el.arenaWrap.className = 'arena-wrap biome-' + this.battleBiome;
+    },
+
+    doBattle() {
+      if (this._fighting || this._racing) return;
+      const entryFee = EVO.devCost(EVO.RACE_ENTRY);
+      if (Game.state.coins < entryFee) { this.toast('Not enough coins.'); return; }
+      Game.state.coins -= entryFee;
+      this.renderHeader();
+
+      const playerId = this.battleChampId;
+      const biome = this.battleBiome;
+      const player = Game.getCreature(playerId);
+      this._fighting = true;
+      const q = EVO.rivalQuality(player, Game.state.day, 0.02);
+      const field = [player];
+      for (let i = 0; i < 3; i++) field.push(EVO.makeRival(q, biome));
+      const result = EVO.simulateBattle(field, biome);
+      this.animateBattle(field, result, playerId, () => {
+        this._fighting = false;
+        const rec = Game.recordBattle(result, playerId, biome, entryFee);
+        this.renderHeader();
+        this.showBattleResults(field, result, rec, playerId);
+        this.renderStable();
+        this.afterAction();
+      });
+    },
+
+    animateBattle(field, result, playerId, done) {
+      const arena = this.el.arena;
+      arena.innerHTML = '';
+      this.el.battleResults.innerHTML = '';
+      this.el.battleBtn.disabled = true;
+
+      const commentary = this.el.battleCommentary;
+      const lines = EVO.battleCommentary(field, result, playerId);
+      let nextLine = 0;
+
+      // Build one sprite (art + hp bar + name) per combatant.
+      const sprites = field.map((c, i) => {
+        const el = document.createElement('div');
+        el.className = 'battler' + (c.id === playerId ? ' player' : '');
+        el.innerHTML = `
+          <div class="b-hpbar"><span style="width:100%"></span></div>
+          <div class="b-art">${EVO.creatureSVG(c, 48)}</div>
+          <div class="b-name">${c.id === playerId ? '▶ ' : ''}${c.name}</div>`;
+        arena.appendChild(el);
+        return { el, hp: el.querySelector('.b-hpbar span'), maxHp: result.maxHps[i], ko: false };
+      });
+
+      const floatText = (x, y, text, cls) => {
+        const f = document.createElement('div');
+        f.className = 'dmg-float ' + (cls || '');
+        f.textContent = text;
+        f.style.left = x + '%';
+        f.style.top = y + '%';
+        arena.appendChild(f);
+        setTimeout(() => f.remove(), 900);
+      };
+
+      const frames = result.frames;
+      const total = frames.length;
+      const events = result.events;
+      let nextEvent = 0;
+      let f = 0;
+      const speedup = EVO.DEV.fastRaces ? 5 : 2;
+
+      const step = () => {
+        const fi = Math.min(Math.floor(f), total - 1);
+        const row = frames[fi];
+        for (let i = 0; i < sprites.length; i++) {
+          const s = row[i], sp = sprites[i];
+          sp.el.style.left = s.x + '%';
+          sp.el.style.top = s.y + '%';
+          sp.hp.style.width = Math.max(0, (s.hp / sp.maxHp) * 100) + '%';
+          sp.hp.parentElement.classList.toggle('low', s.hp / sp.maxHp < 0.3);
+          if (!s.alive && !sp.ko) { sp.ko = true; sp.el.classList.add('ko'); }
+        }
+        while (nextEvent < events.length && events[nextEvent].tick <= fi) {
+          const e = events[nextEvent++];
+          const pos = row[e.target] || row[e.actor] || { x: 50, y: 50 };
+          if (e.type === 'hit' || e.type === 'crit' || e.type === 'ability-hit' || e.type === 'burn') {
+            floatText(pos.x, pos.y - 8, '−' + e.amount, e.type === 'crit' ? 'crit' : (e.type === 'burn' ? 'burn' : ''));
+            if (e.type === 'crit') floatText(pos.x, pos.y - 16, 'CRIT!', 'crit');
+          } else if (e.type === 'heal') {
+            floatText(pos.x, pos.y - 8, '+' + e.amount, 'heal');
+          } else if (e.type === 'dodge') {
+            floatText(pos.x, pos.y - 8, 'miss', 'miss');
+          } else if (e.type === 'ability') {
+            const apos = row[e.actor] || { x: 50, y: 50 };
+            floatText(apos.x, apos.y - 14, e.text, 'ability');
+          }
+        }
+        while (nextLine < lines.length && lines[nextLine].frame <= fi) {
+          commentary.textContent = lines[nextLine].text;
+          commentary.classList.remove('pop');
+          void commentary.offsetWidth;
+          commentary.classList.add('pop');
+          nextLine++;
+        }
+        f += speedup;
+        if (f < total) requestAnimationFrame(step);
+        else setTimeout(done, 500);
+      };
+      requestAnimationFrame(step);
+    },
+
+    showBattleResults(field, result, rec, playerId) {
+      const byId = {};
+      field.forEach((c) => (byId[c.id] = c));
+      let html = '<div class="section-title">Brawl results</div>';
+      result.order.forEach((id, pos) => {
+        const c = byId[id];
+        const you = id === playerId;
+        const prize = EVO.battlePrize(pos, EVO.devCost(EVO.RACE_ENTRY));
+        const abilities = EVO.abilitiesFor(c).map((k) => EVO.ABILITIES[k].emoji).join('');
+        html += `<div class="result-row ${you ? 'you' : ''}">
+          <span class="place">${pos === 0 ? '👑' : ['', '🥈', '🥉'][pos] || (pos + 1)}</span>
+          <span class="rname">${you ? '<b>' + c.name + ' (you)</b>' : c.name} ${abilities}</span>
+          ${prize ? `<span class="prize">+${prize}</span>` : ''}
+        </div>`;
+      });
+      if (rec.pos === 0) {
+        html += '<p class="hint" style="text-align:center">👑 Last one standing! Brawling here builds this biome\'s exposure — breed the victor to push its evolution.</p>';
+      }
+      this.el.battleResults.innerHTML = html;
+      this.el.battleCommentary.textContent = rec.pos === 0
+        ? `👑 ${byId[playerId].name} wins the brawl!`
+        : `Winner: ${byId[result.winnerId].name}`;
+      this.el.battleBtn.disabled = Game.state.coins < EVO.devCost(EVO.RACE_ENTRY);
+      this.el.arenaWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    },
+
     // ---- Wilds (Expeditions + Shop + Market) ------------------------------
     renderWilds() {
       this.renderExplore();
@@ -964,7 +1153,7 @@
 
       const st = Game.state.stats;
       $('#codex-stats').innerHTML =
-        `Races: <b>${st.racesRun}</b> · Wins: <b>${st.wins}</b> · Bred: <b>${st.bred}</b> · Explored: <b>${st.explored || 0}</b> · Evolutions: <b>${st.evolutions}</b> · Cups won: <b>${st.tournamentsWon || 0}</b>`;
+        `Races: <b>${st.racesRun}</b> · Wins: <b>${st.wins}</b> · Brawls: <b>${st.battlesFought || 0}</b> · KO wins: <b>${st.battleWins || 0}</b> · Bred: <b>${st.bred}</b> · Explored: <b>${st.explored || 0}</b> · Evolutions: <b>${st.evolutions}</b> · Cups won: <b>${st.tournamentsWon || 0}</b>`;
     },
 
     // ---- Detail modal ----------------------------------------------------
@@ -1040,6 +1229,10 @@
       const best = EVO.bestBiome(c);
       const traitLine = (c.traits || []).length
         ? `<p style="text-align:center;color:var(--accent)">${c.traits.map((tk) => EVO.TRAITS[tk].emoji + ' ' + EVO.TRAITS[tk].name).join(' · ')}</p>` : '';
+      const abilityKeys = EVO.abilitiesFor(c);
+      const abilityLine = abilityKeys.length
+        ? `<p class="ability-line">${abilityKeys.map((k) => { const a = EVO.ABILITIES[k]; return `<span title="${a.blurb}">${a.emoji} ${a.name}</span>`; }).join(' · ')}</p>`
+        : '<p class="ability-line none">⚔️ No arena ability — evolve this bloodline to arm it.</p>';
       const items = Game.state.items || {};
       const inStable = !!Game.state.stable.find((x) => x.id === c.id);
       const itemRow = inStable ? `
@@ -1059,7 +1252,8 @@
           ${c.sex === 'M' ? '♂' : '♀'} ${sp.emoji} ${sp.name} • Gen ${c.generation} • ★${EVO.rating(c)}
         </p>
         ${traitLine}
-        <p class="hint" style="text-align:center">Best on: ${EVO.BIOMES[best].emoji} ${EVO.BIOMES[best].name} · ${c.races} races, ${c.wins} wins</p>
+        ${abilityLine}
+        <p class="hint" style="text-align:center">Best on: ${EVO.BIOMES[best].emoji} ${EVO.BIOMES[best].name} · ${c.races} races, ${c.wins} wins · ${c.battles || 0} brawls, ${c.battleWins || 0} KO wins</p>
         ${this.statDetailHTML(c)}
         ${EVO.DEV.geneInspector ? this.geneInspectorHTML(c) : ''}
         <div class="section-title">Family tree</div>
@@ -1244,6 +1438,7 @@
       { emoji: '🏁', title: 'Race the biomes', body: 'Each track belongs to a biome. A creature\'s <b>adaptation</b> to that biome matters more than raw stats — the coloured bars on every card show where it thrives. Racing there builds its <b>exposure</b>.' },
       { emoji: '💞', title: 'Breed with intent', body: 'Pick two parents in the Lab. The biome they\'ve raced or explored most pushes their offspring\'s adaptation that way, and the <b>predictor</b> shows stat ranges and evolution odds before you commit.' },
       { emoji: '✨', title: 'Trigger metamorphosis', body: 'Push a lineage\'s adaptation past the threshold and its next offspring is <b>born a new species</b> — stronger, and visibly different. Cross two <i>different</i> specialists to discover rare <b>hybrids</b>.' },
+      { emoji: '⚔️', title: 'Brawl in the arena', body: 'Battles are the other path to glory: four creatures, one arena, last one standing. Stats become HP, damage, and dodge — and an evolved bloodline\'s <b>lineage ability</b> (dashes, burns, frost novas…) can turn a fight. Brawling in a biome builds exposure just like racing.' },
       { emoji: '🧭', title: 'Explore & compete', body: 'Send creatures on <b>expeditions</b> for eggs, coins, and mutation traits. Buy items in the shop, chase the goal ladder, and enter <b>tournaments</b> for the big prizes. Good luck, breeder!' },
     ],
 

@@ -157,6 +157,20 @@
     'crag|tundra': 'galeyeti',
   };
 
+  // ---- Battle abilities ---------------------------------------------------
+  // Each biome lineage manifests a signature arena ability. Hybrids carry
+  // BOTH parent biomes' abilities; Chimerax casts chaotically; grublings
+  // have no ability yet — evolution is what arms a battler.
+  EVO.ABILITIES = {
+    dune: { key: 'dune', name: 'Mirage Dash', emoji: '🌪️', blurb: 'Blinks behind its target and strikes hard out of the heat-haze.' },
+    bog: { key: 'bog', name: 'Mire Grip', emoji: '🥀', blurb: 'Drags the target into sucking mud, slowing its blows and steps.' },
+    crag: { key: 'crag', name: 'Granite Slam', emoji: '🪨', blurb: 'A crushing charge that leaves the target seeing stars.' },
+    tundra: { key: 'tundra', name: 'Frost Nova', emoji: '❄️', blurb: 'A burst of killing cold that chills every nearby rival.' },
+    ash: { key: 'ash', name: 'Ember Burst', emoji: '🔥', blurb: 'Ignites the target — the burn keeps biting after the hit.' },
+    reef: { key: 'reef', name: 'Tidal Mend', emoji: '🌊', blurb: 'A healing surge that also shoves the nearest rival away.' },
+    chaos: { key: 'chaos', name: 'Chaos Surge', emoji: '🧬', blurb: 'Unstable hybrid energy — casts a different ability every time.' },
+  };
+
   // ---- Mutation traits --------------------------------------------------
   // Rare heritable perks found while exploring. Each gives a small edge plus a
   // visual tell, so a lineage carrying one is instantly recognisable.
@@ -195,6 +209,7 @@
     { key: 'five_species', name: 'Naturalist', desc: 'Discover 5 species.', reward: 100, test: (s) => Object.keys(s.discovered).length >= 5 },
     { key: 'apex', name: 'Apex Predator', desc: 'Evolve a Tier-2 apex form.', reward: 250, test: (s) => Object.keys(s.discovered).some((k) => (EVO.SPECIES[k] || {}).tier === 2) },
     { key: 'trait_carrier', name: 'Mutant Bloodline', desc: 'Own a creature with a mutation trait.', reward: 80, test: (s) => s.stable.some((c) => (c.traits || []).length) },
+    { key: 'first_brawl', name: 'Arena Blood', desc: 'Win an arena brawl.', reward: 60, test: (s) => (s.stats.battleWins || 0) >= 1 },
   ];
 
   // ---- Items & consumables ----------------------------------------------
@@ -231,6 +246,8 @@
     { key: 'morph', name: 'Rare Morph', desc: 'Own an iridescent, albino, or melanic creature.', reward: 75, test: (s) => s.stable.some((c) => c.genome.sheen && c.genome.sheen[0] > 0) },
     { key: 'tourn1', name: 'Cup Winner', desc: 'Win a tournament.', reward: 150, test: (s) => (s.stats.tournamentsWon || 0) >= 1 },
     { key: 'tourn3', name: 'Dynasty Cup', desc: 'Win 3 tournaments.', reward: 300, test: (s) => (s.stats.tournamentsWon || 0) >= 3 },
+    { key: 'brawler5', name: 'Pit Fighter', desc: 'Win 5 arena brawls.', reward: 75, test: (s) => (s.stats.battleWins || 0) >= 5 },
+    { key: 'brawler15', name: 'Arena Legend', desc: 'Win 15 arena brawls.', reward: 200, test: (s) => (s.stats.battleWins || 0) >= 15 },
     { key: 'rich', name: 'Dragon Hoard', desc: 'Hold 1,500 coins at once.', reward: 25, test: (s) => s.coins >= 1500 },
     { key: 'all_species', name: 'Grand Codex', desc: 'Discover every species.', reward: 500, test: (s) => Object.keys(EVO.SPECIES).every((k) => s.discovered[k]) },
   ];
@@ -245,7 +262,7 @@
   EVO.FEATURE_CHAPTER = {
     stable: 1, race: 1, biome_dune: 1,
     breed: 2,
-    predictor: 3, biome_bog: 3, biome_crag: 3, biome_tundra: 3,
+    predictor: 3, biome_bog: 3, biome_crag: 3, biome_tundra: 3, battle: 3,
     wilds: 4, market: 4,
     codex: 5, shop: 5, goals: 5, biome_ash: 5, biome_reef: 5,
     tournament: 6,
@@ -276,7 +293,7 @@
         { desc: 'Breed your first hatchling', prog: (s) => [Math.min(1, s.stats.bred), 1], test: (s) => s.stats.bred >= 1 },
         { desc: 'Race a creature you bred', prog: (s) => [Math.min(1, s.stats.homebredRaces || 0), 1], test: (s) => (s.stats.homebredRaces || 0) >= 1 },
       ],
-      unlocks: ['🗺️ Three new biomes: Mirefen Bog, Skyreach Crags, Hollowfrost Tundra', '🔮 The Offspring Predictor'],
+      unlocks: ['🗺️ Three new biomes: Mirefen Bog, Skyreach Crags, Hollowfrost Tundra', '🔮 The Offspring Predictor', '⚔️ The Battle Arena'],
     },
     {
       num: 3, title: 'Four Winds', emoji: '🗺️',
@@ -284,6 +301,7 @@
       intro: [
         'The circuit is bigger than one desert. Bog, crag, tundra — each rewards different blood. Check the coloured bars on a creature\'s card: that\'s how well it fits each land.',
         'And listen closely: where a creature races leaves a mark. Run the same biome again and again, and its children will be born a little more at home there. We call it pressure. You\'ll call it destiny.',
+        'One more thing — the arenas are open to you now. Brawls, not races: creatures knocking each other out with whatever their bloodline gave them. The wilderness shapes fighters the same way it shapes runners.',
       ],
       objectives: [
         { desc: 'Race in 3 different biomes', prog: (s) => [Math.min(3, Object.keys(s.stats.biomesRaced || {}).length), 3], test: (s) => Object.keys(s.stats.biomesRaced || {}).length >= 3 },
