@@ -817,7 +817,16 @@
       this._fighting = true;
       const q = EVO.rivalQuality(player, Game.state.day, 0.02);
       const field = [player];
-      for (let i = 0; i < 3; i++) field.push(EVO.makeRival(q, biome));
+      for (let i = 0; i < 3; i++) {
+        const rival = EVO.makeRival(q, biome);
+        // Arena rivals are often evolved brawlers, so enemy abilities fly
+        // too — and the arena showcases what evolution buys you.
+        if (EVO.R.chance(0.6)) {
+          const b = EVO.R.chance(0.6) ? biome : EVO.R.pick(EVO.BIOME_KEYS.filter((k) => EVO.unlocked('biome_' + k)));
+          rival.species = EVO.EVOLVE_NEXT.grubling[b];
+        }
+        field.push(rival);
+      }
       const result = EVO.simulateBattle(field, biome);
       this.animateBattle(field, result, playerId, () => {
         this._fighting = false;
@@ -867,6 +876,7 @@
       let nextEvent = 0;
       let f = 0;
       const speedup = EVO.DEV.fastRaces ? 5 : 2;
+      const shots = []; // projectiles in flight: {el, targetIdx, arriveFi, x, y}
 
       const step = () => {
         const fi = Math.min(Math.floor(f), total - 1);
@@ -879,6 +889,21 @@
           sp.hp.parentElement.classList.toggle('low', s.hp / sp.maxHp < 0.3);
           if (!s.alive && !sp.ko) { sp.ko = true; sp.el.classList.add('ko'); }
         }
+        // Home in-flight projectiles onto their (moving) targets.
+        for (let s = shots.length - 1; s >= 0; s--) {
+          const sh = shots[s];
+          const t = row[sh.targetIdx];
+          const remain = Math.max(1, (sh.arriveFi - fi) / speedup); // rAF steps left
+          sh.x += (t.x - sh.x) / remain;
+          sh.y += (t.y - sh.y) / remain;
+          sh.el.style.left = sh.x + '%';
+          sh.el.style.top = sh.y + '%';
+          if (fi >= sh.arriveFi) {
+            floatText(t.x, t.y, '✸', 'impact');
+            sh.el.remove();
+            shots.splice(s, 1);
+          }
+        }
         while (nextEvent < events.length && events[nextEvent].tick <= fi) {
           const e = events[nextEvent++];
           const pos = row[e.target] || row[e.actor] || { x: 50, y: 50 };
@@ -889,6 +914,28 @@
             floatText(pos.x, pos.y - 8, '+' + e.amount, 'heal');
           } else if (e.type === 'dodge') {
             floatText(pos.x, pos.y - 8, 'miss', 'miss');
+          } else if (e.type === 'lunge') {
+            // Quick pounce pulse on the attacker.
+            const ael = sprites[e.actor].el;
+            ael.classList.remove('lunging');
+            void ael.offsetWidth;
+            ael.classList.add('lunging');
+          } else if (e.type === 'projectile') {
+            const el = document.createElement('div');
+            el.className = 'projectile';
+            el.textContent = e.emoji;
+            el.style.left = e.from.x + '%';
+            el.style.top = e.from.y + '%';
+            arena.appendChild(el);
+            shots.push({ el, targetIdx: e.target, arriveFi: e.arrive, x: e.from.x, y: e.from.y });
+          } else if (e.type === 'nova') {
+            const apos = row[e.actor] || { x: 50, y: 50 };
+            const ring = document.createElement('div');
+            ring.className = 'nova-ring';
+            ring.style.left = apos.x + '%';
+            ring.style.top = apos.y + '%';
+            arena.appendChild(ring);
+            setTimeout(() => ring.remove(), 800);
           } else if (e.type === 'ability') {
             const apos = row[e.actor] || { x: 50, y: 50 };
             floatText(apos.x, apos.y - 14, e.text, 'ability');
